@@ -20,14 +20,17 @@ struct Process{
 	int arrival; // arrival time, default to 0
 	int remainCPUBurst; // remaining CPU burst time, default to processTime[0].
 	int remainIOBurst; // remaining I/O burst time, default to 0
+	int totalCPUBurst; // total CPU burst so far, tallied at the end of a CPU burst
+	int totalIOBurst; // total I/O burst so far, tallied at the end of a I/O burst
 	int queuePriority; // for MLFQ only, default to 1
-	int responseTime;  // RT = process first gets CPU - arrival time
-	int waitTime; // WT = TT - CPU burst - I/O burst
-	int turnaroundTime; // TT, process completely finishes - arrival time
+	int responseTime;  // RT = process first gets CPU - initial arrival time
+	int waitTime; // WT = time spent in wait queue, increment each time unit when process is in wait queue
+	int turnaroundTime; // TT = waitTime + totalCPUBurst + totalIOBurst (note that the wait time and I/O time that happen before a process completes its current CPU burst do NOT count towards TT
+
 	bool serviced; // flag, indicating whether the process has been serviced already. default to false
 
 	Process(int n, int* pt, int r) : // constructor
-		number(n), index(0), arrival(0), remainCPUBurst(r), remainIOBurst(0), queuePriority(1), responseTime(0), waitTime(0), turnaroundTime(0), serviced(false)
+		number(n), index(0), arrival(0), remainCPUBurst(r), remainIOBurst(0), totalCPUBurst(0), totalIOBurst(0), queuePriority(1), responseTime(0), waitTime(0), turnaroundTime(0), serviced(false)
 	{
 		int i = 0;
 		while (pt[i])
@@ -36,7 +39,7 @@ struct Process{
 	}
 
 	Process(): // constructor, for CPU only
-		number(0), index(0), ptSize(0), arrival(0), remainCPUBurst(0), remainIOBurst(0), queuePriority(1), responseTime(0), waitTime(0), turnaroundTime(0), serviced(false){}
+		number(0), index(0), ptSize(0), arrival(0), remainCPUBurst(0), remainIOBurst(0), totalCPUBurst(0), totalIOBurst(0), queuePriority(1), responseTime(0), waitTime(0), turnaroundTime(0), serviced(false){}
 };
 
 struct Gantt{
@@ -131,7 +134,8 @@ void printWhenNewPricessLoaded(int sysTime, const std::vector<Process>& waitQ, c
 	gantt.processes.push_back("P" + std::to_string(onCPU.number));
 
 	// homework print out
-	if (sysTime == 150){printRT_WT_TT(waitQ, ioQ, complete, onCPU, false);}
+	if (sysTime == 150)
+	{printRT_WT_TT(waitQ, ioQ, complete, onCPU, false);}
 }
 
 void printWhenNewPricessLoaded_MLFQ(int sysTime, const std::vector<std::vector<Process> >& MLQ, const std::vector<Process>& ioQ, const std::vector<Process>& complete, const Process& onCPU, Gantt& gantt){
@@ -188,6 +192,7 @@ void handleSameFinishTimeInIOQ(int sysTime, std::vector<Process>& ioQ, std::vect
 	// find all processes that finish I/O and pop all of them off
 	for (auto it = ioQ.begin(); it != ioQ.end();){
 		if (it->remainIOBurst == 0){
+			it->totalIOBurst += it->processTime[it->index]; // update totalIOBurst
 			targets.push_back(*it);
 			it = ioQ.erase(it);
 		}
@@ -229,67 +234,68 @@ void popOnCPU(std::vector<Process>& waitQ, Process& onCPU, bool& CPUidle, bool& 
 	newProcessLoaded = true;
 }
 
+void IOContextSwitch(int sysTime, std::vector<Process>& waitQ, std::vector<Process>& ioQ){
+	// Determine whether I/O context switch is needed.
+	// If needed, do the context switch and push all processes that finish I/O to wait queue
+	if (!ioQ.empty() && ioQ.begin()->remainIOBurst == 0){ // some process finishes I/O, needs to get back to waitQ
+		std::vector<Process> targets;
+		handleSameFinishTimeInIOQ(sysTime, ioQ, targets);
+		waitQ.insert(waitQ.end(), targets.begin(), targets.end()); // push process on waitQ
+	}
+}
+
+void CPUContextSwitch(std::vector<Process>& ioQ, std::vector<Process>& complete, Process& onCPU, bool& CPUidle){
+	// Determine whether CPU context switch is needed.
+	// If needed, do the context switch and push the process to I/O
+	if (!CPUidle && onCPU.remainCPUBurst == 0){ // current process finishes CPU burst
+		onCPU.totalCPUBurst += onCPU.processTime[onCPU.index]; // update totalCPUBurst
+		// update turnaround time. TT = wait time + CPU burst (just finished) + I/O time right before
+		onCPU.turnaroundTime = onCPU.waitTime + onCPU.totalCPUBurst + onCPU.totalIOBurst;
+		// still more I/O to do
+		if (onCPU.index < onCPU.ptSize - 2)
+			pushToIO(ioQ, onCPU); // push current process from CPU to I/O
+		else
+			complete.push_back(onCPU); // no more I/O, i.e. all bursts have been completed.
+		CPUidle = true; // set CPU to idle
+	}
+}
+
 
 int FCFS(std::vector<Process>& processList, std::vector<Process>& waitQ, std::vector<Process>& ioQ, std::vector<Process>& complete, Process& onCPU, Gantt& gantt){
 	int sysTime = 0;
 	bool CPUidle = true; // flag for whether CPU is busy or idle
 	bool newProcessLoaded; // flag set true only at the iteration a new process is loaded
 
-	while (true){
-		// admit processes based on their initial arrival time
-		if (!processList.empty())
+	while (!(!CPUidle && onCPU.remainCPUBurst == 0 && waitQ.empty() && ioQ.empty())){ // END POINT condition: waitQ, ioQ both empty and CPU just finishes its last burst
+		newProcessLoaded = false; // default to false at beginning of each iteration
+
+		if (!processList.empty()) // admit processes based on their initial arrival time
 			admitProcess(sysTime, processList, waitQ);
 
 		// Do context switches first
-		// I/O side context switch
-		if (!ioQ.empty() && ioQ.begin()->remainIOBurst == 0){ // some process finishes I/O, needs to get back to waitQ
-			std::vector<Process> targets;
-			handleSameFinishTimeInIOQ(sysTime, ioQ, targets);
-			waitQ.insert(waitQ.end(), targets.begin(), targets.end()); // push process on waitQ
-		}
+		IOContextSwitch(sysTime, waitQ, ioQ); // I/O side context switch
+		CPUContextSwitch(ioQ, complete, onCPU, CPUidle); // CPU side context switch
 
-		// CPU side context switch
-		newProcessLoaded = false;
-		if (!CPUidle && onCPU.remainCPUBurst == 0){ // current process finishes CPU burst
-			if (onCPU.index < onCPU.ptSize - 2){ // still more I/O to do
-				onCPU.remainIOBurst = onCPU.processTime[++(onCPU.index)]; // move index to I/O element of processTime and update remainIOBurst
-				ioQ.push_back(onCPU);
-				std::push_heap(ioQ.begin(), ioQ.end(), CompareIO());
-			}
-			else {complete.push_back(onCPU);} // no more I/O, i.e. all bursts have been completed.
-			CPUidle = true; // set CPU to idle
-
-			if (waitQ.empty() && ioQ.empty()) {break;} // END POINT!!!
-		}
-		if (CPUidle && !waitQ.empty() && waitQ.begin()->arrival <= sysTime){ // take on new process only when CPU is idle and there is process in the waitQ
-			// the top of waitQ should be pushed onto CPU, BUT if there are multiple processes with the
-			// same arrival time and all ready to go to CPU, only the one with the smallest process number
-			// gets CPU first.
+		// take on new process only when CPU is idle and there is process ready in the waitQ
+		if (CPUidle && !waitQ.empty() && waitQ.begin()->arrival <= sysTime){
 			handleSameArrivalTimeInWaitQ(waitQ); // check same arrival time situation
-			popOnCPU(waitQ, onCPU, CPUidle, newProcessLoaded);}
-
+			popOnCPU(waitQ, onCPU, CPUidle, newProcessLoaded);
+		}
 		// print out waitQ, ioQ, and CPU information at each instance when a new process gets CPU
 		// also provide information to generate Gantt Chart
 		if (newProcessLoaded){printWhenNewPricessLoaded(sysTime, waitQ, ioQ, complete, onCPU, gantt);}
 
 		// Then update key parameters at each time tick
 		// CPU processing
-		if (!CPUidle){
-			onCPU.remainCPUBurst--;
-			onCPU.turnaroundTime++;
-		}
+		if (!CPUidle) {onCPU.remainCPUBurst--;}
 		// wiatQ updates
 		for (auto& p : waitQ){
 			if (!p.serviced) // increase RT for the processes that haven't been serviced yet
 				p.responseTime++;
 			p.waitTime++;
-			p.turnaroundTime++;
 		}
 		// ioQ updates
-		for (auto& p : ioQ){
-			p.remainIOBurst--;
-			p.turnaroundTime++;
-		}
+		for (auto& p : ioQ) {p.remainIOBurst--;}
 		sysTime++;
 	}
 	return sysTime;
@@ -555,13 +561,13 @@ int main() {
 
 
 	// FCFS
-//	int totalTime = FCFS(processList, waitQ, ioQ, complete, onCPU, gantt);
+	int totalTime = FCFS(processList, waitQ, ioQ, complete, onCPU, gantt);
 
 	// RR
 //	int totalTime = RR(5, processList, waitQ, ioQ, complete, onCPU, gantt);
 
 	// MLFQ
-	int totalTime = MLFQ(4, 9, processList, MLQ, ioQ, complete, onCPU, gantt);
+//	int totalTime = MLFQ(4, 9, processList, MLQ, ioQ, complete, onCPU, gantt);
 
 	gantt.times.push_back(totalTime);
 

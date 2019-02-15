@@ -11,9 +11,9 @@
 
 #include <iostream>
 #include <vector>
-#include <algorithm>
-#include <iterator>
 #include <string>
+#include <iterator>
+#include <algorithm> // make_heap(), push_heap()
 
 struct Process{
 	int number; // process number, e.g. the 1 in P1, 2 in P2, etc.
@@ -54,9 +54,9 @@ struct ComparePNumber{ // for sorting based on process number
 // CPU and I/O actions
 void admitProcess(int sysTime, std::vector<Process>& processList, std::vector<Process>& waitQ); // admit new process based on its arrival time
 void IOContextSwitch(int sysTime, std::vector<Process>& waitQ, std::vector<Process>& ioQ);
-void CPUContextSwitch(std::vector<Process>& ioQ, std::vector<Process>& complete, Process& onCPU, bool& CPUidle);
+void CPUContextSwitch(int sysTime, std::vector<Process>& waitQ, std::vector<Process>& ioQ, std::vector<Process>& complete, Process& onCPU, bool& CPUidle, bool exceedQuant);
 void pushToIO(std::vector<Process>& ioQ, Process& onCPU);
-void pushToCPU(int sysTime, std::vector<Process>& waitQ, std::vector<Process>& ioQ, std::vector<Process>& complete, Process& onCPU, bool& CPUidle, Gantt& gantt, bool hasTimeLimit, int timeLimit);
+void pushToCPU(int sysTime, std::vector<Process>& waitQ, std::vector<Process>& ioQ, std::vector<Process>& complete, Process& onCPU, bool& CPUidle, bool hasTimeLimit, int timeLimit);
 
 // handle multiple ready process in waitQ and ioQ
 void handleSameArrivalTimeInWaitQ(std::vector<Process>& waitQ);

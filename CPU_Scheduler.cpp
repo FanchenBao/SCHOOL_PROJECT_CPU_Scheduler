@@ -4,7 +4,6 @@
  *  Created on: Feb 14, 2019
  *      Author: fanchen
  */
-
 #include "CPU_Scheduler.h"
 
 // constructor
@@ -33,33 +32,34 @@ void admitProcess(int sysTime, std::vector<Process>& processList, std::vector<Pr
 }
 
 void IOContextSwitch(int sysTime, std::vector<Process>& waitQ, std::vector<Process>& ioQ){
-	// Determine whether I/O context switch is needed.
-	// If needed, do the context switch and push all processes that finish I/O to wait queue
-	if (!ioQ.empty() && ioQ.begin()->remainIOBurst == 0){ // some process finishes I/O, needs to get back to waitQ
-		std::vector<Process> targets;
-		handleSameFinishTimeInIOQ(sysTime, ioQ, targets);
-		waitQ.insert(waitQ.end(), targets.begin(), targets.end()); // push process on waitQ
-	}
+	// I/O context switch and push all processes that finish I/O to wait queue
+	std::vector<Process> targets;
+	handleSameFinishTimeInIOQ(sysTime, ioQ, targets);
+	waitQ.insert(waitQ.end(), targets.begin(), targets.end()); // push process on waitQ
 }
 
-void CPUContextSwitch(std::vector<Process>& ioQ, std::vector<Process>& complete, Process& onCPU, bool& CPUidle){
-	// Determine whether CPU context switch is needed.
-	// If needed, do the context switch and push the process to I/O
-	if (!CPUidle && onCPU.remainCPUBurst == 0){ // current process finishes CPU burst
+void CPUContextSwitch(int sysTime, std::vector<Process>& waitQ, std::vector<Process>& ioQ, std::vector<Process>& complete, Process& onCPU, bool& CPUidle, bool exceedQuant){
+	// Perform CPU context switch and push the process to I/O or completion.
+	// exceedQuant determines whether the context switch is initiated by reaching quantum under RR
+	onCPU.totalCPUBurst += (onCPU.processTime[onCPU.index] - onCPU.remainCPUBurst); // update totalCPUBurst
+	onCPU.processTime[onCPU.index] = onCPU.remainCPUBurst; // update burst time value in processTime array
+	if (onCPU.index > 0)
+		onCPU.totalIOBurst += onCPU.processTime[onCPU.index - 1]; // update totalIOBurst
+	// update turnaround time. TT = wait time + CPU burst (just finished) + I/O time right before
+	onCPU.turnaroundTime = onCPU.waitTime + onCPU.totalCPUBurst + onCPU.totalIOBurst;
 
-		onCPU.totalCPUBurst += onCPU.processTime[onCPU.index]; // update totalCPUBurst
-		if (onCPU.index > 0)
-			onCPU.totalIOBurst += onCPU.processTime[onCPU.index - 1]; // update totalIOBurst
-		// update turnaround time. TT = wait time + CPU burst (just finished) + I/O time right before
-		onCPU.turnaroundTime = onCPU.waitTime + onCPU.totalCPUBurst + onCPU.totalIOBurst;
-
+	if (exceedQuant){ // context switch due to quantum dried up
+		onCPU.arrival = sysTime; // reset arrival time
+		waitQ.push_back(onCPU); // pushed to the back of waitQ
+	}
+	else{ // context switch due to complete previous burst
 		// still more I/O to do
 		if (onCPU.index < onCPU.ptSize - 2)
 			pushToIO(ioQ, onCPU); // push current process from CPU to I/O
 		else
 			complete.push_back(onCPU); // no more I/O, i.e. all bursts have been completed.
-		CPUidle = true; // set CPU to idle
 	}
+	CPUidle = true; // set CPU to idle
 }
 
 void pushToIO(std::vector<Process>& ioQ, Process& onCPU){
@@ -69,23 +69,16 @@ void pushToIO(std::vector<Process>& ioQ, Process& onCPU){
 	std::push_heap(ioQ.begin(), ioQ.end(), CompareIO());
 }
 
-void pushToCPU(int sysTime, std::vector<Process>& waitQ, std::vector<Process>& ioQ, std::vector<Process>& complete, Process& onCPU, bool& CPUidle, Gantt& gantt, bool hasTimeLimit, int timeLimit){
-	// Determine whether the CPU and wait queue are both ready to push a new process to CPU
-	// take on new process only when CPU is idle and there is process ready in the waitQ
-	if (CPUidle && !waitQ.empty() && waitQ.begin()->arrival <= sysTime){
-		handleSameArrivalTimeInWaitQ(waitQ); // check same arrival time situation
-		onCPU = *waitQ.begin();
-		if (onCPU.totalCPUBurst == 0) // process is serviced for the first time
-			onCPU.responseTime = sysTime - onCPU.arrival;
-		if (!hasTimeLimit || sysTime < timeLimit) // update wait time (this is to make sure the process loaded onto CPU at the point of timeLimit does not have its last wait time counted, because this process is considered DONE before time limit)
-			onCPU.waitTime += sysTime - onCPU.arrival;
-		waitQ.erase(waitQ.begin());
-		CPUidle = false;
-
-		// print out waitQ, ioQ, and CPU info when a new process gets CPU, also provide information to generate Gantt Chart
-		printWhenNewPricessLoaded(sysTime, waitQ, ioQ, complete, onCPU);
-		updateGanttChart(sysTime, onCPU, gantt);
-	}
+void pushToCPU(int sysTime, std::vector<Process>& waitQ, std::vector<Process>& ioQ, std::vector<Process>& complete, Process& onCPU, bool& CPUidle, bool hasTimeLimit, int timeLimit){
+	// push new process to CPU
+//	handleSameArrivalTimeInWaitQ(waitQ); // check same arrival time situation. Comment this line if one does not want to pick the smallest process number to go first if multiple arrival times are the same
+	onCPU = *waitQ.begin();
+	if (onCPU.totalCPUBurst == 0) // process is serviced for the first time
+		onCPU.responseTime = sysTime - onCPU.arrival;
+	if (!hasTimeLimit || sysTime < timeLimit) // update wait time (this is to make sure the process loaded onto CPU at the point of timeLimit does not have its last wait time counted, because this process is considered DONE before time limit)
+		onCPU.waitTime += sysTime - onCPU.arrival;
+	waitQ.erase(waitQ.begin());
+	CPUidle = false;
 }
 
 

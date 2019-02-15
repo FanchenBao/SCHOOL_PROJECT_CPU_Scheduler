@@ -35,20 +35,27 @@ void IOContextSwitch(int sysTime, std::vector<Process>& waitQ, std::vector<Proce
 	// I/O context switch and push all processes that finish I/O to wait queue
 	std::vector<Process> targets;
 	handleSameFinishTimeInIOQ(sysTime, ioQ, targets);
+	for (auto& t : targets){
+		t.remainCPUBurst = t.processTime[++(t.index)]; // move index to CPU element of processTime and update remainCPUBurst
+		t.arrival = sysTime; // update arrival time
+	}
+
 	waitQ.insert(waitQ.end(), targets.begin(), targets.end()); // push process on waitQ
 }
 
 void CPUContextSwitch(int sysTime, std::vector<Process>& waitQ, std::vector<Process>& ioQ, std::vector<Process>& complete, Process& onCPU, bool& CPUidle, bool exceedQuant){
 	// Perform CPU context switch and push the process to I/O or completion.
 	// exceedQuant determines whether the context switch is initiated by reaching quantum under RR
-	onCPU.totalCPUBurst += (onCPU.processTime[onCPU.index] - onCPU.remainCPUBurst); // update totalCPUBurst
-	onCPU.processTime[onCPU.index] = onCPU.remainCPUBurst; // update burst time value in processTime array
-	if (onCPU.index > 0)
+	onCPU.totalCPUBurst += onCPU.processTime[onCPU.index] - onCPU.remainCPUBurst; // update totalCPUBurst
+	onCPU.processTime[onCPU.index] = onCPU.remainCPUBurst; // update CPU burst info in processTime array
+	if (onCPU.index > 0){
 		onCPU.totalIOBurst += onCPU.processTime[onCPU.index - 1]; // update totalIOBurst
+		onCPU.processTime[onCPU.index - 1] = 0; // once an I/O burst is counted for, update info in processTime array
+	}
 	// update turnaround time. TT = wait time + CPU burst (just finished) + I/O time right before
 	onCPU.turnaroundTime = onCPU.waitTime + onCPU.totalCPUBurst + onCPU.totalIOBurst;
 
-	if (exceedQuant){ // context switch due to quantum dried up
+	if (exceedQuant){ // context switch due to quantum dried up.
 		onCPU.arrival = sysTime; // reset arrival time
 		waitQ.push_back(onCPU); // pushed to the back of waitQ
 	}
@@ -71,7 +78,7 @@ void pushToIO(std::vector<Process>& ioQ, Process& onCPU){
 
 void pushToCPU(int sysTime, std::vector<Process>& waitQ, std::vector<Process>& ioQ, std::vector<Process>& complete, Process& onCPU, bool& CPUidle, bool hasTimeLimit, int timeLimit){
 	// push new process to CPU
-//	handleSameArrivalTimeInWaitQ(waitQ); // check same arrival time situation. Comment this line if one does not want to pick the smallest process number to go first if multiple arrival times are the same
+	handleSameArrivalTimeInWaitQ(waitQ); // check same arrival time situation. Comment this line if one does not want to pick the smallest process number to go first if multiple arrival times are the same
 	onCPU = *waitQ.begin();
 	if (onCPU.totalCPUBurst == 0) // process is serviced for the first time
 		onCPU.responseTime = sysTime - onCPU.arrival;
@@ -108,10 +115,6 @@ void handleSameFinishTimeInIOQ(int sysTime, std::vector<Process>& ioQ, std::vect
 	}
 	std::make_heap(ioQ.begin(), ioQ.end(), CompareIO());
 	std::sort(targets.begin(), targets.end(), ComparePNumber()); // order according to process number (ascending)
-	for (auto& t : targets){
-		t.remainCPUBurst = t.processTime[++(t.index)]; // move index to CPU element of processTime and update remainCPUBurst
-		t.arrival = sysTime; // update arrival time
-	}
 }
 
 
@@ -233,9 +236,16 @@ void printWhenNewPricessLoaded_MLFQ(int sysTime, const std::vector<std::vector<P
 
 
 // Miscellaneous
-void updateGanttChart(int sysTime, Process& onCPU, Gantt& gantt){
+void updateGanttChart(int sysTime, Process& onCPU, Gantt& gantt, bool CPUidle){
 	// Gather info to print Gantt Chart
 	gantt.times.push_back(sysTime);
-	gantt.processes.push_back("P" + std::to_string(onCPU.number));
+	if (!CPUidle){ // a new process is currently on CPU
+		gantt.processes.push_back("P" + std::to_string(onCPU.number));
+		gantt.preIdle = false;
+	}
+	else{ // CPU in idle
+		gantt.processes.push_back("IDLE");
+		gantt.preIdle = true;
+	}
 }
 

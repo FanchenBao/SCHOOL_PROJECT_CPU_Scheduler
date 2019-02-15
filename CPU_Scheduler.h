@@ -37,6 +37,7 @@ struct Process{
 struct Gantt{ // for producing Gantt Chart
 	std::vector<std::string> processes;
 	std::vector<int> times;
+	bool preIdle; // flag, true = previous Gantt entry is idle, false = previous Gantt entry is a process
 };
 
 struct CompareIO{ // for heapify ioQ
@@ -70,7 +71,7 @@ void printWhenNewPricessLoaded(int sysTime, const std::vector<Process>& waitQ, c
 void printWhenNewPricessLoaded_MLFQ(int sysTime, const std::vector<std::vector<Process> >& MLQ, const std::vector<Process>& ioQ, const std::vector<Process>& complete, const Process& onCPU, Gantt& gantt); // print information of each queue when a new process is just loaded onto CPU (MLFQ version)
 
 // Miscellaneous
-void updateGanttChart(int sysTime, Process& onCPU, Gantt& gantt); // Gather info to print Gantt Chart
+void updateGanttChart(int sysTime, Process& onCPU, Gantt& gantt, bool CPUidle); // Gather info to print Gantt Chart
 
 
 

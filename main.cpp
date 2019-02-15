@@ -9,7 +9,6 @@
 
 void FCFS(int& sysTime, std::vector<Process>& processList, std::vector<Process>& waitQ, std::vector<Process>& ioQ, std::vector<Process>& complete, Process& onCPU, Gantt& gantt, bool hasTimeLimit, int timeLimit){
 	bool CPUidle = true; // flag for whether CPU is busy or idle
-
 	while (true){
 		if (!processList.empty()){ // admit processes based on their initial arrival time
 			admitProcess(sysTime, processList, waitQ);
@@ -18,13 +17,19 @@ void FCFS(int& sysTime, std::vector<Process>& processList, std::vector<Process>&
 		// Do context switches first
 		if (!ioQ.empty() && ioQ.begin()->remainIOBurst == 0) // some process finishes I/O, I/O context switch
 			IOContextSwitch(sysTime, waitQ, ioQ);
+
 		if (!CPUidle && onCPU.remainCPUBurst == 0) // current process finishes CPU burst, CPU context switch
 			CPUContextSwitch(sysTime, waitQ, ioQ, complete, onCPU, CPUidle, false);
-		if (CPUidle && !waitQ.empty() && waitQ.begin()->arrival <= sysTime){ // CPU and waitQ both ready to accept new process
-			pushToCPU(sysTime, waitQ, ioQ, complete, onCPU, CPUidle, hasTimeLimit, timeLimit); // load a process to CPU, if possible
-			// print out waitQ, ioQ, and CPU info when a new process gets CPU, also provide information to generate Gantt Chart
-			printWhenNewPricessLoaded(sysTime, waitQ, ioQ, complete, onCPU);
-			updateGanttChart(sysTime, onCPU, gantt);
+
+		if (CPUidle){ // CPU idle, test whether okay to push process onto CPU
+			if (!waitQ.empty() && waitQ.begin()->arrival <= sysTime){ // CPU and waitQ both ready to accept new process
+				pushToCPU(sysTime, waitQ, ioQ, complete, onCPU, CPUidle, hasTimeLimit, timeLimit); // load a process to CPU, if possible
+				// print out waitQ, ioQ, and CPU info when a new process gets CPU, also provide information to generate Gantt Chart
+				printWhenNewPricessLoaded(sysTime, waitQ, ioQ, complete, onCPU);
+				updateGanttChart(sysTime, onCPU, gantt, CPUidle);
+			}
+			else if (!gantt.preIdle) // CPU remains idle, nothing happens.
+				updateGanttChart(sysTime, onCPU, gantt, CPUidle);
 		}
 
 		// END POINT!!!
@@ -42,7 +47,6 @@ void FCFS(int& sysTime, std::vector<Process>& processList, std::vector<Process>&
 void RR(int& sysTime, int quant, std::vector<Process>& processList, std::vector<Process>& waitQ, std::vector<Process>& ioQ, std::vector<Process>& complete, Process& onCPU, Gantt& gantt, bool hasTimeLimit, int timeLimit){
 	int currQuant = quant;
 	bool CPUidle = true; // flag for whether CPU is busy or idle
-
 	while (true){
 		if (!processList.empty()) // admit processes based on their initial arrival time
 			admitProcess(sysTime, processList, waitQ);
@@ -62,11 +66,15 @@ void RR(int& sysTime, int quant, std::vector<Process>& processList, std::vector<
 			}
 		}
 
-		if (CPUidle && !waitQ.empty() && waitQ.begin()->arrival <= sysTime){ // take on new process only when CPU is idle and there is process in the waitQ
-			pushToCPU(sysTime, waitQ, ioQ, complete, onCPU, CPUidle, hasTimeLimit, timeLimit); // load a process to CPU, if possible
-			// print out waitQ, ioQ, and CPU info when a new process gets CPU, also provide information to generate Gantt Chart
-			updateGanttChart(sysTime, onCPU, gantt);
-			printWhenNewPricessLoaded(sysTime, waitQ, ioQ, complete, onCPU);
+		if (CPUidle){ // CPU idle, test whether okay to push process onto CPU
+			if (!waitQ.empty() && waitQ.begin()->arrival <= sysTime){ // take on new process only when CPU is idle and there is process in the waitQ
+				pushToCPU(sysTime, waitQ, ioQ, complete, onCPU, CPUidle, hasTimeLimit, timeLimit); // load a process to CPU, if possible
+				// print out waitQ, ioQ, and CPU info when a new process gets CPU, also provide information to generate Gantt Chart
+				updateGanttChart(sysTime, onCPU, gantt, CPUidle);
+				printWhenNewPricessLoaded(sysTime, waitQ, ioQ, complete, onCPU);
+			}
+			else if (!gantt.preIdle) // CPU remains idle, nothing happens.
+				updateGanttChart(sysTime, onCPU, gantt, CPUidle);
 		}
 
 		// END POINT!!!
@@ -238,6 +246,8 @@ int main() {
 //	int info[5][30] = {{10},{11},{12},{8},{5}};
 
 	// initialize all processes, put them all in waitQ in the order of their number.
+//	for (int i = 0; i < 5; i++) {processList.emplace_back(i+1, info[i], info[i][0]);}
+
 	for (int i = 0; i < 9; i++) {processList.emplace_back(i+1, info[i], info[i][0]);}
 
 //	processList[0].arrival = 0;
@@ -264,16 +274,16 @@ int main() {
 	int sysTime = 0; // initial system time
 
 	// FCFS
-//	FCFS(sysTime, processList, waitQ, ioQ, complete, onCPU, gantt, hasTimeLimit, timeLimit);
+	FCFS(sysTime, processList, waitQ, ioQ, complete, onCPU, gantt, hasTimeLimit, timeLimit);
 
 	// RR
-	RR(sysTime, 5, processList, waitQ, ioQ, complete, onCPU, gantt, hasTimeLimit, timeLimit);
+//	RR(sysTime, 5, processList, waitQ, ioQ, complete, onCPU, gantt, hasTimeLimit, timeLimit);
 
 	// MLFQ
 //	int totalTime = MLFQ(4, 9, processList, MLQ, ioQ, complete, onCPU, gantt);
 
-	if (!hasTimeLimit) // if system let to finish completely, Gantt Chart needs the final system time.
-		gantt.times.push_back(sysTime);
+//	if (!hasTimeLimit) // if system let to finish completely, Gantt Chart needs the final system time.
+//		gantt.times.push_back(sysTime);
 
 	printGanttChart(gantt);
 	printRT_WT_TT(waitQ, ioQ, complete, onCPU, hasTimeLimit);

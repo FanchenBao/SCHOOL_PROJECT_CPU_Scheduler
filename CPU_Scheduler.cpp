@@ -43,6 +43,18 @@ void IOContextSwitch(int sysTime, std::vector<Process>& waitQ, std::vector<Proce
 	waitQ.insert(waitQ.end(), targets.begin(), targets.end()); // push process on waitQ
 }
 
+void IOContextSwitch(int sysTime, std::vector<std::vector<Process> >& MLQ, std::vector<Process>& ioQ){
+	// I/O context switch and push all processes that finish I/O to wait queue
+	// Overloaded for MLFQ
+	std::vector<Process> targets;
+	handleSameFinishTimeInIOQ(sysTime, ioQ, targets);
+	for (auto& t : targets){
+		t.remainCPUBurst = t.processTime[++(t.index)]; // move index to CPU element of processTime and update remainCPUBurst
+		t.arrival = sysTime; // update arrival time
+		MLQ[t.queuePriority - 1].push_back(t); // push process to the waiting queue corresponding to their queue priority
+	}
+}
+
 void CPUContextSwitch(int sysTime, std::vector<Process>& waitQ, std::vector<Process>& ioQ, std::vector<Process>& complete, Process& onCPU, bool& CPUidle, bool exceedQuant){
 	// Perform CPU context switch and push the process to I/O or completion.
 	// exceedQuant determines whether the context switch is initiated by reaching quantum under RR
@@ -61,13 +73,50 @@ void CPUContextSwitch(int sysTime, std::vector<Process>& waitQ, std::vector<Proc
 	}
 	else{ // context switch due to complete previous burst
 		// still more I/O to do
-		if (onCPU.index < onCPU.ptSize - 2)
-			pushToIO(ioQ, onCPU); // push current process from CPU to I/O
-		else
-			complete.push_back(onCPU); // no more I/O, i.e. all bursts have been completed.
+		if (onCPU.index < onCPU.ptSize - 2) {pushToIO(ioQ, onCPU);} // push current process from CPU to I/O
+		else {complete.push_back(onCPU);} // no more I/O, i.e. all bursts have been completed.
 	}
 	CPUidle = true; // set CPU to idle
 }
+
+void CPUContextSwitch(int sysTime, std::vector<int>& currQ, const std::vector<int>& quantums, std::vector<std::vector<Process> >& MLQ, std::vector<Process>& ioQ, std::vector<Process>& complete, Process& onCPU, bool& CPUidle, int reasonForSwitch){
+	// Perform CPU context switch and push the process to I/O or completion.
+	// Used specifically for MLFQ
+	// reasonForSwitch = 1 (current CPU burst completes), 2 (current quantum dried up), 3 (preempted by higher priority process)
+	onCPU.totalCPUBurst += onCPU.processTime[onCPU.index] - onCPU.remainCPUBurst; // update totalCPUBurst
+	onCPU.processTime[onCPU.index] = onCPU.remainCPUBurst; // update CPU burst info in processTime array
+	if (onCPU.index > 0){
+		onCPU.totalIOBurst += onCPU.processTime[onCPU.index - 1]; // update totalIOBurst
+		onCPU.processTime[onCPU.index - 1] = 0; // once an I/O burst is counted for, update info in processTime array
+	}
+	// update turnaround time. TT = wait time + CPU burst (just finished) + I/O time right before
+	onCPU.turnaroundTime = onCPU.waitTime + onCPU.totalCPUBurst + onCPU.totalIOBurst;
+
+	switch (reasonForSwitch){
+	case 1: // context switch due to complete previous burst
+		if (onCPU.index < onCPU.ptSize - 2) {pushToIO(ioQ, onCPU);} // still more I/O to do, push current process from CPU to I/O
+		else {complete.push_back(onCPU);} // no more I/O, i.e. all bursts have been completed.
+		currQ[onCPU.queuePriority - 1] = quantums[onCPU.queuePriority - 1]; // reset quantum for the queue whose process just gets kicked off
+		break;
+	case 2: // quantum used up, current process is down-graded.
+		onCPU.arrival = sysTime;
+		currQ[onCPU.queuePriority - 1] = quantums[onCPU.queuePriority - 1]; // reset quantum for the queue whose process just gets kicked off (before down-grade happens)
+		onCPU.queuePriority++; // downgrade queue priority
+		MLQ[onCPU.queuePriority - 1].push_back(onCPU); // push process to its down-graded queue
+		break;
+	case 3:
+		onCPU.arrival = sysTime;
+		MLQ[onCPU.queuePriority - 1].push_back(onCPU); // push process to its original queue
+		currQ[onCPU.queuePriority - 1] = quantums[onCPU.queuePriority - 1]; // reset quantum for the queue whose process just gets kicked off
+		break;
+	default:
+		std::cerr << "Fatal Error: Check reason for CPU context switch." << std::endl;
+		std::exit(1);
+	}
+	CPUidle = true; // set CPU to idle
+}
+
+
 
 void pushToIO(std::vector<Process>& ioQ, Process& onCPU){
 	// kick a process off CPU and onto I/O queue
@@ -150,25 +199,28 @@ void printRT_WT_TT(const std::vector<Process>& waitQ, const std::vector<Process>
 	}
 }
 
-void printRT_WT_TT_MLFQ(const std::vector<std::vector<Process> >& MLQ, const std::vector<Process>& ioQ, const std::vector<Process>& complete, const Process& onCPU, bool printAtEnd){
+void printRT_WT_TT(const std::vector<std::vector<Process> >& MLQ, const std::vector<Process>& ioQ, const std::vector<Process>& complete, const Process& onCPU, bool hasTimeLimit){
 	// print out RT, WT, and TT for each process
 	std::vector<Process> forPrint(complete.begin(), complete.end());
-	if (!printAtEnd){ // if data are to be printed mid way through the scheduling, processes are scattered in all queues.
+	if (hasTimeLimit){ // scheduling exits prematurely, processes are scattered in different places.
 		forPrint.insert(forPrint.end(), ioQ.begin(), ioQ.end());
-		for (int i = 0; i < 3; i++)
-			forPrint.insert(forPrint.end(), MLQ[i].begin(), MLQ[i].end());
+		for (auto& subQ : MLQ)
+			forPrint.insert(forPrint.end(), subQ.begin(), subQ.end());
 		forPrint.push_back(onCPU);
 	}
 	std::sort(forPrint.begin(), forPrint.end(), ComparePNumber());
 	std::cout << "Process\t" << "RT\t" << "WT\t" << "TT\n";
 	for (auto p : forPrint){
-		std::cout << "P" << p.number << "\t" << p.responseTime << "\t" << p.waitTime << "\t" << p.turnaroundTime << std::endl;
+		std::cout << "P" << p.number << "\t"
+				<< p.responseTime << "\t"
+				<< p.waitTime << "\t"
+				<< p.turnaroundTime << "\t"
+				<< p.totalCPUBurst << "(CPU) + " << p.waitTime << "(WT) + " << p.totalIOBurst << "(I/O)" << std::endl;
 	}
 }
 
 void printWhenNewPricessLoaded(int sysTime, const std::vector<Process>& waitQ, const std::vector<Process>& ioQ, const std::vector<Process>& complete, const Process& onCPU){
-	// print information of each queue when a new process is just loaded onto CPU. Also gethering information
-	// for Gantt Chart
+	// print information of each queue when a new process is just loaded onto CPU.
 	std::cout << "Current Time = " << sysTime << std::endl;
 	std::cout << "Next process on the CPU: P" << onCPU.number << ", Burst = "<< onCPU.remainCPUBurst << std::endl;
 	for (int i = 0; i < 60; i++)
@@ -196,23 +248,32 @@ void printWhenNewPricessLoaded(int sysTime, const std::vector<Process>& waitQ, c
 	std::cout << "\n\n\n";
 }
 
-void printWhenNewPricessLoaded_MLFQ(int sysTime, const std::vector<std::vector<Process> >& MLQ, const std::vector<Process>& ioQ, const std::vector<Process>& complete, const Process& onCPU, Gantt& gantt){
+void printWhenNewPricessLoaded(int sysTime, const std::vector<std::vector<Process> >& MLQ, const std::vector<Process>& ioQ, const std::vector<Process>& complete, const Process& onCPU){
+	// print information of each queue when a new process is just loaded onto CPU. Overloaded for MLFQ
 	std::cout << "Current Time = " << sysTime << std::endl;
 	std::cout << "Next process on the CPU: P" << onCPU.number << ", Burst = "<< onCPU.remainCPUBurst << std::endl;
 	for (int i = 0; i < 60; i++)
 		std::cout <<".";
 	std::cout << "\nList of processes in the ready queue:\n";
 	std::cout << "\tProcess\t\tBurst\t\tQueue\n";
-	if (MLQ[0].empty() && MLQ[1].empty() && MLQ[2].empty())
-		std::cout << "\t[empty]\n";
-	else{
-		for (auto p : MLQ[0])
-			std::cout << "\tP" << p.number << "\t\t" << p.remainCPUBurst << "\t\tQ" << p.queuePriority << std::endl;
-		for (auto p : MLQ[1])
-			std::cout << "\tP" << p.number << "\t\t" << p.remainCPUBurst << "\t\tQ" << p.queuePriority << std::endl;
-		for (auto p : MLQ[2])
-			std::cout << "\tP" << p.number << "\t\t" << p.remainCPUBurst << "\t\tQ" << p.queuePriority << std::endl;
+	bool allSubQEmpty = true;
+	for (auto subQ : MLQ){
+		if (!subQ.empty()){
+			allSubQEmpty = false;
+			for (auto p : subQ)
+				std::cout << "\tP" << p.number << "\t\t" << p.remainCPUBurst << "\t\tQ" << p.queuePriority << std::endl;
+		}
 	}
+	if (allSubQEmpty)
+		std::cout << "\t[empty]\n";
+//	else{
+//		for (auto p : MLQ[0])
+//			std::cout << "\tP" << p.number << "\t\t" << p.remainCPUBurst << "\t\tQ" << p.queuePriority << std::endl;
+//		for (auto p : MLQ[1])
+//			std::cout << "\tP" << p.number << "\t\t" << p.remainCPUBurst << "\t\tQ" << p.queuePriority << std::endl;
+//		for (auto p : MLQ[2])
+//			std::cout << "\tP" << p.number << "\t\t" << p.remainCPUBurst << "\t\tQ" << p.queuePriority << std::endl;
+//	}
 	for (int i = 0; i < 60; i++)
 		std::cout <<".";
 	std::cout << "\nList of processes in I/O:\n";
@@ -226,10 +287,6 @@ void printWhenNewPricessLoaded_MLFQ(int sysTime, const std::vector<std::vector<P
 	for (int i = 0; i < 60; i++)
 		std::cout <<"*";
 	std::cout << "\n\n\n";
-
-	// for Gantt Chart
-	gantt.times.push_back(sysTime);
-	gantt.processes.push_back("P" + std::to_string(onCPU.number));
 }
 
 

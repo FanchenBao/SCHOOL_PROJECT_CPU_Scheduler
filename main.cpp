@@ -87,86 +87,57 @@ void RR(int& sysTime, int quant, std::vector<Process>& processList, std::vector<
 		sysTime++;
 	}
 }
-//
-//int MLFQ(int q1, int q2, std::vector<Process>& processList, std::vector<std::vector<Process> >& MLQ, std::vector<Process>& ioQ, std::vector<Process>& complete, Process& onCPU, Gantt& gantt){
-//	int sysTime = 0;
-//	int currQ1 = q1;
-//	int currQ2 = q2;
-//	bool CPUidle = true; // flag for whether CPU is busy or idle
-//	bool newProcessLoaded; // flag set true only at the iteration a new process is loaded
-//
-//	while (true){
-//		// admit processes based on their initial arrival time
-//		if (!processList.empty())
-//			admitProcess(sysTime, processList, MLQ[0]);
-//
-//		// Do context switches first.
-//		// I/O side context switch
-//		if (!ioQ.empty() && ioQ.begin()->remainIOBurst == 0){ // some process finishes I/O, needs to get back to waitQ
-//			std::vector<Process> targets;
-//			handleSameFinishTimeInIOQ(sysTime, ioQ, targets);
-//			for (auto t : targets){
-//				// push process to the waiting queue corresponding to their queue priority
-//				if (t.queuePriority == 1)
-//					MLQ[0].push_back(t);
-//				else if (t.queuePriority == 2)
-//					MLQ[1].push_back(t);
-//				else if (t.queuePriority == 3)
-//					MLQ[2].push_back(t);
-//			}
-//		}
-//
-//		// CPU side context switch
-//		// current process finishes CPU burst
-//		newProcessLoaded = false;
-//		if (!CPUidle && onCPU.remainCPUBurst == 0){
-//			if (onCPU.index < onCPU.ptSize - 2) {pushToIO(ioQ, onCPU);} // still more I/O to do
-//			else {complete.push_back(onCPU);} // no more I/O, i.e. all bursts have been completed.
-//			CPUidle = true; // set CPU to idle
-//			// depending on which queue the process that has just been kicked off CPU is on, update its quantum
-//			if (onCPU.queuePriority == 1){currQ1 = q1;}
-//			else if (onCPU.queuePriority == 2){currQ2 = q2;}
-//
-//			if (MLQ[0].empty() && MLQ[1].empty() && MLQ[2].empty() && ioQ.empty()) {break;} // END POINT!!!
-//		}
-//		// current process hasn't finished its CPU burst but used up its quantum, ONLY for process in queue 1 and queue 2
-//		if (!CPUidle && ((onCPU.queuePriority == 1 && currQ1 == 0) || (onCPU.queuePriority == 2 && currQ2 == 0))){
-//			onCPU.arrival = sysTime; // reset arrival time
-//			onCPU.queuePriority++; // downgrade queue priority
-//			if (onCPU.queuePriority == 2){
-//				MLQ[1].push_back(onCPU); // downgrade to queue 2 (note that queue2 is MLQ[1])
-//				currQ1 = q1; // reset queue1 quantum
-//			}
-//			else if (onCPU.queuePriority == 3){
-//				MLQ[2].push_back(onCPU); // downgrade to queue 3 (note that queue3 is MLQ[2])
-//				currQ2 = q2; // reset queue2 quantum
-//			}
-//			CPUidle = true; // set CPU to idle
-//		}
-//		// current process hasn't finished its CPU burst or quantum, but the higher priority queue has process ready to preempt
-//		// the current process
-//		if (!CPUidle){
-//			// process at top of queue1 is ready to get CPU and the current process on CPU has lower queue priority
-//			if (!MLQ[0].empty() && MLQ[0].begin()->arrival == sysTime && onCPU.queuePriority > 1){
-//				onCPU.arrival = sysTime;
-//				if (onCPU.queuePriority == 2){
-//					MLQ[1].push_back(onCPU); // preempted, but NOT downgraded. Still in queue2
-//					currQ2 = q2; // reset queue2 quantum
-//				}
-//				else if (onCPU.queuePriority == 3){
-//					MLQ[2].push_back(onCPU); // preempted, but NOT downgraded. Still in queue3
-//				}
-//				CPUidle = true; // set CPU to idle
-//			}
-//			// process at top of queue2 is ready to get CPU and the current process on CPU has lower queue priority
-//			else if (!MLQ[1].empty() && MLQ[1].begin()->arrival == sysTime && onCPU.queuePriority > 2){
-//				onCPU.arrival = sysTime;
-//				MLQ[2].push_back(onCPU); // preempted, but NOT downgraded. Still in queue3
-//				CPUidle = true; // set CPU to idle
-//			}
-//		}
-//		// CPU take on new process, only when it is idle, and in the order of queue priority
-//		if (CPUidle){
+
+void MLFQ(int& sysTime, const std::vector<int>& quantums, std::vector<Process>& processList, std::vector<std::vector<Process> >& MLQ, std::vector<Process>& ioQ, std::vector<Process>& complete, Process& onCPU, Gantt& gantt, const int numProcess, const bool hasTimeLimit, const int timeLimit){
+	std::vector<int> currQ(quantums);
+	bool CPUidle = true; // flag for whether CPU is busy or idle
+	while (true){
+		if (!processList.empty()) // admit processes based on their initial arrival time
+			admitProcess(sysTime, processList, MLQ[0]);
+
+		// Do context switches first.
+		// I/O side context switch
+		if (!ioQ.empty() && ioQ.begin()->remainIOBurst == 0) // some process finishes I/O, needs to get back to waitQ
+			IOContextSwitch(sysTime, MLQ, ioQ);
+
+		if (!CPUidle){// CPU side context switch
+			if (onCPU.remainCPUBurst == 0){ // current process finishes CPU burst
+				CPUContextSwitch(sysTime, currQ, quantums, MLQ, ioQ, complete, onCPU, CPUidle, 1);
+			}
+			else if (currQ[onCPU.queuePriority - 1] == 0){ // current process hasn't finished its CPU burst but used up its quantum
+				CPUContextSwitch(sysTime, currQ, quantums, MLQ, ioQ, complete, onCPU, CPUidle, 2);
+			}
+			else{ // current process hasn't finished its CPU burst or quantum, but the higher priority queue has process ready to preempt the current process
+				for (int i = 0; i < onCPU.queuePriority - 1; i++){
+					if (!MLQ[i].empty() && MLQ[i].begin()->arrival == sysTime){
+						CPUContextSwitch(sysTime, currQ, quantums, MLQ, ioQ, complete, onCPU, CPUidle, 3);
+						break;
+					}
+				}
+			}
+
+		}
+
+		if (CPUidle){ // CPU idle, test whether okay to push process onto CPU
+			for (auto& subQ : MLQ){
+				if (!subQ.empty() && subQ.begin()->arrival <= sysTime){
+					pushToCPU(sysTime, subQ, ioQ, complete, onCPU, CPUidle, hasTimeLimit, timeLimit);
+					// print out waitQ, ioQ, and CPU info when a new process gets CPU, also provide information to generate Gantt Chart
+					updateGanttChart(sysTime, onCPU, gantt, CPUidle);
+					break;
+				}
+			}
+			if (!CPUidle){
+				printWhenNewPricessLoaded(sysTime, MLQ, ioQ, complete, onCPU);
+			}
+			else if (CPUidle && !gantt.preIdle) // CPU remains idle, nothing happens.
+				updateGanttChart(sysTime, onCPU, gantt, CPUidle);
+		}
+
+		// END POINT!!!
+		if (complete.size() == numProcess || (hasTimeLimit && sysTime == timeLimit)) // all processes complete or sysTime reaches timeLimit
+			break;
+
 //			if (!MLQ[0].empty() && MLQ[0].begin()->arrival <= sysTime){
 //				handleSameArrivalTimeInWaitQ(MLQ[0]); // check same arrival time situation
 //				popOnCPU(MLQ[0], onCPU, CPUidle, newProcessLoaded);
@@ -186,6 +157,11 @@ void RR(int& sysTime, int quant, std::vector<Process>& processList, std::vector<
 //		if (newProcessLoaded)
 //			{printWhenNewPricessLoaded_MLFQ(sysTime, MLQ, ioQ, complete, onCPU, gantt);}
 //
+
+		// Update key parameters at each time tick
+		if (!CPUidle){onCPU.remainCPUBurst--; currQ[onCPU.queuePriority - 1]--;} // CPU processing
+		for (auto& p : ioQ){p.remainIOBurst--;} // ioQ updates
+
 //		// Then update key parameters at each time tick
 //		// CPU processing
 //		if (!CPUidle){
@@ -210,10 +186,9 @@ void RR(int& sysTime, int quant, std::vector<Process>& processList, std::vector<
 //			p.remainIOBurst--;
 //			p.turnaroundTime++;
 //		}
-//		sysTime++;
-//	}
-//	return sysTime;
-//}
+		sysTime++;
+	}
+}
 
 
 
@@ -225,10 +200,14 @@ int main() {
 	Process onCPU;
 	Gantt gantt;
 	std::vector<std::vector<Process> > MLQ; // multilevel queues
-	for (int i = 0; i < 3; i++) // add three subqueues to MLQ
-		MLQ.emplace_back(std::vector<Process>());
 
-	// Testing Data
+	bool hasTimeLimit = true;
+//	bool hasTimeLimit = false;
+	int timeLimit = 147;
+	int sysTime = 0; // initial system time
+	int numProcess = 9; // total number of processes
+
+//	 Testing Data
 	int info[9][30] = {{4, 27, 3, 31, 2, 43, 4, 18, 4, 22, 4, 26, 3, 24, 4},
 						{16, 24, 17, 21, 5, 36, 16, 26, 7, 31, 13, 28, 11, 21, 6, 13, 3, 11, 4},
 						{8, 33, 12, 41, 18, 65, 14, 21, 4, 61, 15, 18, 14, 26, 5, 31, 6},
@@ -248,7 +227,7 @@ int main() {
 	// initialize all processes, put them all in waitQ in the order of their number.
 //	for (int i = 0; i < 5; i++) {processList.emplace_back(i+1, info[i], info[i][0]);}
 
-	for (int i = 0; i < 9; i++) {processList.emplace_back(i+1, info[i], info[i][0]);}
+	for (int i = 0; i < numProcess; i++) {processList.emplace_back(i+1, info[i], info[i][0]);}
 
 //	processList[0].arrival = 0;
 //	processList[1].arrival = 3;
@@ -268,25 +247,25 @@ int main() {
 //	processList[3].arrival = 12;
 //	processList[4].arrival = 14;
 
-//	bool hasTimeLimit = true;
-	bool hasTimeLimit = false;
-	int timeLimit = 151;
-	int sysTime = 0; // initial system time
 
 	// FCFS
-	FCFS(sysTime, processList, waitQ, ioQ, complete, onCPU, gantt, hasTimeLimit, timeLimit);
+//	FCFS(sysTime, processList, waitQ, ioQ, complete, onCPU, gantt, hasTimeLimit, timeLimit);
 
 	// RR
 //	RR(sysTime, 5, processList, waitQ, ioQ, complete, onCPU, gantt, hasTimeLimit, timeLimit);
 
 	// MLFQ
-//	int totalTime = MLFQ(4, 9, processList, MLQ, ioQ, complete, onCPU, gantt);
+	int numSubQ = 3;
+	for (int i = 0; i < numSubQ; i++) // add subqueues to MLQ
+		MLQ.emplace_back(std::vector<Process>());
+	std::vector<int> quantums = {4, 9, -1}; // all non-RR queues default to -1 quantum (set to -1 such that non-RR queue quantum would never reach 0 to trigger a quantum drying up event)
 
-//	if (!hasTimeLimit) // if system let to finish completely, Gantt Chart needs the final system time.
-//		gantt.times.push_back(sysTime);
+	MLFQ(sysTime, quantums, processList, MLQ, ioQ, complete, onCPU, gantt, numProcess, hasTimeLimit, timeLimit);
 
+	// print out final results
 	printGanttChart(gantt);
-	printRT_WT_TT(waitQ, ioQ, complete, onCPU, hasTimeLimit);
+//	printRT_WT_TT(waitQ, ioQ, complete, onCPU, hasTimeLimit);
+	printRT_WT_TT(MLQ, ioQ, complete, onCPU, hasTimeLimit); // for MLFQ
 
 	return 0;
 }

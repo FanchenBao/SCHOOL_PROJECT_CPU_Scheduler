@@ -66,13 +66,15 @@ void handleSameFinishTimeInIOQ(int sysTime, std::vector<Process>& ioQ, std::vect
 // output
 void printGanttChart(const Gantt& gantt); // print out Gantt Chart
 void printRT_WT_TT(const std::vector<Process>& waitQ, const std::vector<Process>& ioQ, const std::vector<Process>& complete, const Process& onCPU, bool hasTimeLimit); // print out RT, WT, and TT for each process
-void printRT_WT_TT_MLFQ(const std::vector<std::vector<Process> >& MLQ, const std::vector<Process>& ioQ, const std::vector<Process>& complete, const Process& onCPU, bool printAtEnd); // print out RT, WT, and TT for each process (MLFQ version)
 void printWhenNewPricessLoaded(int sysTime, const std::vector<Process>& waitQ, const std::vector<Process>& ioQ, const std::vector<Process>& complete, const Process& onCPU); // print information of each queue when a new process is just loaded onto CPU
-void printWhenNewPricessLoaded_MLFQ(int sysTime, const std::vector<std::vector<Process> >& MLQ, const std::vector<Process>& ioQ, const std::vector<Process>& complete, const Process& onCPU, Gantt& gantt); // print information of each queue when a new process is just loaded onto CPU (MLFQ version)
 
 // Miscellaneous
 void updateGanttChart(int sysTime, Process& onCPU, Gantt& gantt, bool CPUidle); // Gather info to print Gantt Chart
 
-
+// for MLFQ, these functions are overloaded
+void IOContextSwitch(int sysTime, std::vector<std::vector<Process> >& MLQ, std::vector<Process>& ioQ);
+void CPUContextSwitch(int sysTime, std::vector<int>& currQ, const std::vector<int>& quantums, std::vector<std::vector<Process> >& MLQ, std::vector<Process>& ioQ, std::vector<Process>& complete, Process& onCPU, bool& CPUidle, int reasonForSwitch);
+void printRT_WT_TT(const std::vector<std::vector<Process> >& MLQ, const std::vector<Process>& ioQ, const std::vector<Process>& complete, const Process& onCPU, bool hasTimeLimit);
+void printWhenNewPricessLoaded(int sysTime, const std::vector<std::vector<Process> >& MLQ, const std::vector<Process>& ioQ, const std::vector<Process>& complete, const Process& onCPU);
 
 #endif /* CPU_SCHEDULER_H_ */

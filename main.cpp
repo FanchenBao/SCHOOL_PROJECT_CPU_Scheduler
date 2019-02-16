@@ -40,8 +40,6 @@ int main() {
 //	int info[5][30] = {{10},{11},{12},{8},{5}};
 
 	// initialize all processes, put them all in waitQ in the order of their number.
-//	for (int i = 0; i < 5; i++) {processList.emplace_back(i+1, info[i], info[i][0]);}
-
 	for (int i = 0; i < numProcess; i++) {processList.emplace_back(i+1, info[i], info[i][0]);}
 
 //	processList[0].arrival = 0;
@@ -74,13 +72,17 @@ int main() {
 	for (int i = 0; i < numSubQ; i++) // add subqueues to MLQ
 		MLQ.emplace_back(std::vector<Process>());
 	std::vector<int> quantums = {4, 9, -1}; // all non-RR queues default to -1 quantum (set to -1 such that non-RR queue quantum would never reach 0 to trigger a quantum drying up event)
+//	MLFQ(sysTime, quantums, processList, MLQ, ioQ, complete, onCPU, gantt, numProcess, hasTimeLimit, timeLimit);
 
-	MLFQ(sysTime, quantums, processList, MLQ, ioQ, complete, onCPU, gantt, numProcess, hasTimeLimit, timeLimit);
+	// SJF
+	SJF(sysTime, processList, waitQ, ioQ, complete, onCPU, gantt, hasTimeLimit, timeLimit);
+
+
 
 	// print out final results
 	printGanttChart(gantt);
-//	printRT_WT_TT(waitQ, ioQ, complete, onCPU, hasTimeLimit);
-	printRT_WT_TT(MLQ, ioQ, complete, onCPU, hasTimeLimit); // for MLFQ
+	printRT_WT_TT(waitQ, ioQ, complete, onCPU, hasTimeLimit);
+//	printRT_WT_TT(MLQ, ioQ, complete, onCPU, hasTimeLimit); // for MLFQ
 
 	return 0;
 }

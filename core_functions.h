@@ -47,8 +47,15 @@ struct ComparePNumber{ // for sorting based on process number
     }
 };
 
+struct CompareRemainCPUBurst{ // for sorting based on remaining CPU burst
+    bool operator()(const Process &a, const Process &b) const{
+        return a.remainCPUBurst < b.remainCPUBurst;
+    }
+};
+
 // CPU and I/O actions
 void admitProcess(int sysTime, std::vector<Process>& processList, std::vector<Process>& waitQ); // admit new process based on its arrival time
+void prioritizeWaitQ(int sysTime, int priorityType, std::vector<Process>& waitQ);
 void IOContextSwitch(int sysTime, std::vector<Process>& waitQ, std::vector<Process>& ioQ);
 void CPUContextSwitch(int sysTime, std::vector<Process>& waitQ, std::vector<Process>& ioQ, std::vector<Process>& complete, Process& onCPU, bool& CPUidle, int reasonForSwitch);
 void pushToIO(std::vector<Process>& ioQ, Process& onCPU);

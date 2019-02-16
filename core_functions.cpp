@@ -32,6 +32,32 @@ void admitProcess(int sysTime, std::vector<Process>& processList, std::vector<Pr
 	}
 }
 
+void prioritizeWaitQ(int sysTime, int priorityType, std::vector<Process>& waitQ){
+	// reorder waitQ if necessary, based on priorityType
+	// priorityType = 1 (arrival time (FCFS, RR)), 2 (CPU burst (SJF, SRF))
+	switch (priorityType){
+		case 1: {// priority is arrival time. No major reordering needed, except when multiple processes have same arrival time at the top
+			if (!waitQ.empty() && waitQ.begin()->arrival <= sysTime)
+				handleSamePriorityInWaitQ(waitQ, 1); // check same arrival time situation. Comment this line if one does not want to pick the smallest process number to go first if multiple arrival times are the same
+			break;
+		}
+		case 2: {// priority is the remaining CPU burst
+			if (!waitQ.empty() && waitQ.begin()->arrival <= sysTime){
+				auto it = waitQ.begin();
+				for (; it != waitQ.end(); it++) // reorder based on CPU burst for all those processes eligible for CPU now
+					if (it->arrival > sysTime) {break;}
+				std::sort(waitQ.begin(), it, CompareRemainCPUBurst()); // sort these eligible processes based on remaining CPU burst
+				handleSamePriorityInWaitQ(waitQ, 2); // for processes at the beginning having same CPU burst, reorder based on process number
+			}
+			break;
+		}
+		default:{
+			std::cerr << "Fatal Error: Check priorityType for process admission." << std::endl;
+			std::exit(1);
+		}
+	}
+}
+
 void IOContextSwitch(int sysTime, std::vector<Process>& waitQ, std::vector<Process>& ioQ){
 	// I/O context switch and push all processes that finish I/O to wait queue
 	std::vector<Process> targets;
@@ -69,11 +95,11 @@ void CPUContextSwitch(int sysTime, std::vector<Process>& waitQ, std::vector<Proc
 	onCPU.turnaroundTime = onCPU.waitTime + onCPU.totalCPUBurst + onCPU.totalIOBurst;
 
 	switch (reasonForSwitch){
-	case 1:
+	case 1: // context switch due to complete previous burst
 		if (onCPU.index < onCPU.ptSize - 2) {pushToIO(ioQ, onCPU);} // push current process from CPU to I/O
 		else {complete.push_back(onCPU);} // no more I/O, i.e. all bursts have been completed.
 		break;
-	case 2:
+	case 2: // quantum used up
 		onCPU.arrival = sysTime; // reset arrival time
 		waitQ.push_back(onCPU); // pushed to the back of waitQ
 		break;
@@ -109,7 +135,7 @@ void CPUContextSwitch(int sysTime, std::vector<int>& currQ, const std::vector<in
 		onCPU.queuePriority++; // downgrade queue priority
 		MLQ[onCPU.queuePriority - 1].push_back(onCPU); // push process to its down-graded queue
 		break;
-	case 3:
+	case 3: // preempted by higher priority process
 		onCPU.arrival = sysTime;
 		MLQ[onCPU.queuePriority - 1].push_back(onCPU); // push process to its original queue
 		currQ[onCPU.queuePriority - 1] = quantums[onCPU.queuePriority - 1]; // reset quantum for the queue whose process just gets kicked off
@@ -132,7 +158,6 @@ void pushToIO(std::vector<Process>& ioQ, Process& onCPU){
 
 void pushToCPU(int sysTime, std::vector<Process>& waitQ, std::vector<Process>& ioQ, std::vector<Process>& complete, Process& onCPU, bool& CPUidle, bool hasTimeLimit, int timeLimit){
 	// push new process to CPU
-	handleSameArrivalTimeInWaitQ(waitQ); // check same arrival time situation. Comment this line if one does not want to pick the smallest process number to go first if multiple arrival times are the same
 	onCPU = *waitQ.begin();
 	if (onCPU.totalCPUBurst == 0) // process is serviced for the first time
 		onCPU.responseTime = sysTime - onCPU.arrival;

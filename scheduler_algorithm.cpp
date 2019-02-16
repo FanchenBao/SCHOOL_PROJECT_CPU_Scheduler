@@ -10,13 +10,14 @@
 void FCFS(int& sysTime, std::vector<Process>& processList, std::vector<Process>& waitQ, std::vector<Process>& ioQ, std::vector<Process>& complete, Process& onCPU, Gantt& gantt, bool hasTimeLimit, int timeLimit){
 	bool CPUidle = true; // flag for whether CPU is busy or idle
 	while (true){
-		if (!processList.empty()){ // admit processes based on their initial arrival time
+		if (!processList.empty()) // admit processes based on their initial arrival time
 			admitProcess(sysTime, processList, waitQ);
-		}
 
 		// Do context switches first
 		if (!ioQ.empty() && ioQ.begin()->remainIOBurst == 0) // some process finishes I/O, I/O context switch
 			IOContextSwitch(sysTime, waitQ, ioQ);
+
+		prioritizeWaitQ(sysTime, 1, waitQ); // reorder waitQ if needed
 
 		if (!CPUidle && onCPU.remainCPUBurst == 0) // current process finishes CPU burst, CPU context switch
 			CPUContextSwitch(sysTime, waitQ, ioQ, complete, onCPU, CPUidle, 1);
@@ -57,6 +58,8 @@ void RR(int& sysTime, int quant, std::vector<Process>& processList, std::vector<
 		// Do context switches first
 		if (!ioQ.empty() && ioQ.begin()->remainIOBurst == 0) // some process finishes I/O, I/O context switch
 			IOContextSwitch(sysTime, waitQ, ioQ);
+
+		prioritizeWaitQ(sysTime, 1, waitQ); // reorder waitQ if needed
 
 		if (!CPUidle){ // CPU side context switch
 			if (onCPU.remainCPUBurst == 0){ // current process finishes CPU burst
@@ -106,6 +109,9 @@ void MLFQ(int& sysTime, const std::vector<int>& quantums, std::vector<Process>& 
 		if (!ioQ.empty() && ioQ.begin()->remainIOBurst == 0) // some process finishes I/O, needs to get back to waitQ
 			IOContextSwitch(sysTime, MLQ, ioQ);
 
+		for (auto& subQ : MLQ) // reorder each subQ if needed
+			prioritizeWaitQ(sysTime, 1, subQ);
+
 		if (!CPUidle){// CPU side context switch
 			if (onCPU.remainCPUBurst == 0) // current process finishes CPU burst
 				CPUContextSwitch(sysTime, currQ, quantums, MLQ, ioQ, complete, onCPU, CPUidle, 1);
@@ -147,6 +153,46 @@ void MLFQ(int& sysTime, const std::vector<int>& quantums, std::vector<Process>& 
 		// Update key parameters at each time tick
 		if (!CPUidle){onCPU.remainCPUBurst--; currQ[onCPU.queuePriority - 1]--;} // CPU processing
 		for (auto& p : ioQ){p.remainIOBurst--;} // ioQ updates
+		sysTime++;
+	}
+}
+
+void SJF(int& sysTime, std::vector<Process>& processList, std::vector<Process>& waitQ, std::vector<Process>& ioQ, std::vector<Process>& complete, Process& onCPU, Gantt& gantt, bool hasTimeLimit, int timeLimit){
+	bool CPUidle = true; // flag for whether CPU is busy or idle
+	while (true){
+		if (!processList.empty()) // admit processes based on their initial arrival time
+			admitProcess(sysTime, processList, waitQ);
+
+		// Do context switches first
+		if (!ioQ.empty() && ioQ.begin()->remainIOBurst == 0) // some process finishes I/O, I/O context switch
+			IOContextSwitch(sysTime, waitQ, ioQ);
+
+		prioritizeWaitQ(sysTime, 2, waitQ); // reorder waitQ if needed
+
+		if (!CPUidle && onCPU.remainCPUBurst == 0) // current process finishes CPU burst, CPU context switch
+			CPUContextSwitch(sysTime, waitQ, ioQ, complete, onCPU, CPUidle, 1);
+
+		if (CPUidle){ // CPU idle, test whether okay to push process onto CPU
+			if (!waitQ.empty() && waitQ.begin()->arrival <= sysTime){ // CPU and waitQ both ready to accept new process
+				pushToCPU(sysTime, waitQ, ioQ, complete, onCPU, CPUidle, hasTimeLimit, timeLimit); // load a process to CPU, if possible
+				// print out waitQ, ioQ, and CPU info when a new process gets CPU, also provide information to generate Gantt Chart
+				printWhenNewPricessLoaded(sysTime, waitQ, ioQ, complete, onCPU, CPUidle);
+				updateGanttChart(sysTime, onCPU, gantt, CPUidle);
+			}
+			else if (!gantt.preIdle){ // CPU remains idle, nothing happens.
+				// print idle condition and update Gantt Chart with it
+				printWhenNewPricessLoaded(sysTime, waitQ, ioQ, complete, onCPU, CPUidle);
+				updateGanttChart(sysTime, onCPU, gantt, CPUidle);
+			}
+		}
+
+		// END POINT!!!
+		if ((onCPU.remainCPUBurst == 0 && waitQ.empty() && ioQ.empty() && processList.empty()) || (hasTimeLimit && sysTime == timeLimit))
+			break;
+
+		// Update key parameters at each time tick
+		if (!CPUidle) {onCPU.remainCPUBurst--;} // CPU processing
+		for (auto& p : ioQ) {p.remainIOBurst--;} // ioQ updates
 		sysTime++;
 	}
 }

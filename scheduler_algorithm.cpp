@@ -7,32 +7,31 @@
 
 #include "scheduler_algorithm.h"
 
-void FCFS(int& sysTime, int& sysIdle, std::vector<Process>& processList, std::vector<Process>& waitQ, std::vector<Process>& ioQ, std::vector<Process>& complete, Process& onCPU, Gantt& gantt, const int numProcess, const bool hasTimeLimit, const int timeLimit){
-	bool CPUidle = true; // flag for whether CPU is busy or idle
+void FCFS(int& sysTime, int& sysIdle, bool& CPUidle, std::vector<Process>& processList, std::vector<Process>& readyQ, std::vector<Process>& ioQ, std::vector<Process>& complete, Process& onCPU, Gantt& gantt, const int numProcess, const bool hasTimeLimit, const int timeLimit){
 	while (true){
 		if (!processList.empty()) // admit processes based on their initial arrival time
-			admitProcess(sysTime, processList, waitQ);
+			admitProcess(sysTime, processList, readyQ);
 
 		// Do context switches first
 		if (!ioQ.empty() && ioQ.begin()->remainIOBurst == 0) // some process finishes I/O, I/O context switch
-			IOContextSwitch(sysTime, waitQ, ioQ);
+			popOffIO(sysTime, readyQ, ioQ);
 
-		prioritizeWaitQ(sysTime, 1, waitQ); // reorder waitQ if needed
+		prioritizeReadyQ(sysTime, 1, readyQ); // reorder readyQ if needed
 
 		if (!CPUidle && onCPU.remainCPUBurst == 0) // current process finishes CPU burst, CPU context switch
-			CPUContextSwitch(sysTime, waitQ, ioQ, complete, onCPU, CPUidle, 1);
+			popOffCPU(sysTime, readyQ, ioQ, complete, onCPU, CPUidle, 1);
 
 		if (CPUidle){ // CPU idle, test whether okay to push process onto CPU
-			if (!waitQ.empty() && waitQ.begin()->arrival <= sysTime){ // CPU and waitQ both ready to accept new process
-				pushToCPU(sysTime, waitQ, ioQ, complete, onCPU, CPUidle, hasTimeLimit, timeLimit); // load a process to CPU, if possible
-				// print out waitQ, ioQ, and CPU info when a new process gets CPU, also provide information to generate Gantt Chart
-				printWhenNewPricessLoaded(sysTime, waitQ, ioQ, complete, onCPU, CPUidle);
+			if (!readyQ.empty() && readyQ.begin()->arrival <= sysTime){ // CPU and readyQ both ready to accept new process
+				pushToCPU(sysTime, readyQ, ioQ, complete, onCPU, CPUidle, hasTimeLimit, timeLimit); // load a process to CPU, if possible
+				// print out readyQ, ioQ, and CPU info when a new process gets CPU, also provide information to generate Gantt Chart
+				printWhenNewProcessLoaded(sysTime, readyQ, ioQ, complete, onCPU, CPUidle);
 				updateGanttChart(sysTime, onCPU, gantt, CPUidle);
 			}
 			else{
 				if (!gantt.preIdle){ // CPU remains idle, nothing happens.
 					// print idle condition and update Gantt Chart with it
-					printWhenNewPricessLoaded(sysTime, waitQ, ioQ, complete, onCPU, CPUidle);
+					printWhenNewProcessLoaded(sysTime, readyQ, ioQ, complete, onCPU, CPUidle);
 					updateGanttChart(sysTime, onCPU, gantt, CPUidle);
 				}
 				sysIdle++;
@@ -53,41 +52,40 @@ void FCFS(int& sysTime, int& sysIdle, std::vector<Process>& processList, std::ve
 }
 
 
-void RR(int& sysTime, int& sysIdle, int quant, std::vector<Process>& processList, std::vector<Process>& waitQ, std::vector<Process>& ioQ, std::vector<Process>& complete, Process& onCPU, Gantt& gantt, const int numProcess, const bool hasTimeLimit, const int timeLimit){
+void RR(int& sysTime, int& sysIdle, bool& CPUidle, int quant, std::vector<Process>& processList, std::vector<Process>& readyQ, std::vector<Process>& ioQ, std::vector<Process>& complete, Process& onCPU, Gantt& gantt, const int numProcess, const bool hasTimeLimit, const int timeLimit){
 	int currQuant = quant;
-	bool CPUidle = true; // flag for whether CPU is busy or idle
 	while (true){
 		if (!processList.empty()) // admit processes based on their initial arrival time
-			admitProcess(sysTime, processList, waitQ);
+			admitProcess(sysTime, processList, readyQ);
 
 		// Do context switches first
 		if (!ioQ.empty() && ioQ.begin()->remainIOBurst == 0) // some process finishes I/O, I/O context switch
-			IOContextSwitch(sysTime, waitQ, ioQ);
+			popOffIO(sysTime, readyQ, ioQ);
 
-		prioritizeWaitQ(sysTime, 1, waitQ); // reorder waitQ if needed
+		prioritizeReadyQ(sysTime, 1, readyQ); // reorder readyQ if needed
 
 		if (!CPUidle){ // CPU side context switch
 			if (onCPU.remainCPUBurst == 0){ // current process finishes CPU burst
-				CPUContextSwitch(sysTime, waitQ, ioQ, complete, onCPU, CPUidle, 1);
+				popOffCPU(sysTime, readyQ, ioQ, complete, onCPU, CPUidle, 1);
 				currQuant = quant; // reset quantum
 			}
 			else if (currQuant == 0){ // current process hasn't finished its CPU burst but used up its quantum
-				CPUContextSwitch(sysTime, waitQ,ioQ, complete, onCPU, CPUidle, 2);
+				popOffCPU(sysTime, readyQ,ioQ, complete, onCPU, CPUidle, 2);
 				currQuant = quant; // reset quantum
 			}
 		}
 
 		if (CPUidle){ // CPU idle, test whether okay to push process onto CPU
-			if (!waitQ.empty() && waitQ.begin()->arrival <= sysTime){ // take on new process only when CPU is idle and there is process in the waitQ
-				pushToCPU(sysTime, waitQ, ioQ, complete, onCPU, CPUidle, hasTimeLimit, timeLimit); // load a process to CPU, if possible
-				// print out waitQ, ioQ, and CPU info when a new process gets CPU, also provide information to generate Gantt Chart
+			if (!readyQ.empty() && readyQ.begin()->arrival <= sysTime){ // take on new process only when CPU is idle and there is process in the readyQ
+				pushToCPU(sysTime, readyQ, ioQ, complete, onCPU, CPUidle, hasTimeLimit, timeLimit); // load a process to CPU, if possible
+				// print out readyQ, ioQ, and CPU info when a new process gets CPU, also provide information to generate Gantt Chart
 				updateGanttChart(sysTime, onCPU, gantt, CPUidle);
-				printWhenNewPricessLoaded(sysTime, waitQ, ioQ, complete, onCPU, CPUidle);
+				printWhenNewProcessLoaded(sysTime, readyQ, ioQ, complete, onCPU, CPUidle);
 			}
 			else{
 				if (!gantt.preIdle){ // CPU remains idle, nothing happens.
 					// print idle condition and update Gantt Chart with it
-					printWhenNewPricessLoaded(sysTime, waitQ, ioQ, complete, onCPU, CPUidle);
+					printWhenNewProcessLoaded(sysTime, readyQ, ioQ, complete, onCPU, CPUidle);
 					updateGanttChart(sysTime, onCPU, gantt, CPUidle);
 				}
 				sysIdle++;
@@ -107,30 +105,29 @@ void RR(int& sysTime, int& sysIdle, int quant, std::vector<Process>& processList
 	}
 }
 
-void MLFQ(int& sysTime, int& sysIdle, const std::vector<int>& quantums, std::vector<Process>& processList, std::vector<std::vector<Process> >& MLQ, std::vector<Process>& ioQ, std::vector<Process>& complete, Process& onCPU, Gantt& gantt, const int numProcess, const bool hasTimeLimit, const int timeLimit){
+void MLFQ(int& sysTime, int& sysIdle, bool& CPUidle, const std::vector<int>& quantums, std::vector<Process>& processList, std::vector<std::vector<Process> >& MLQ, std::vector<Process>& ioQ, std::vector<Process>& complete, Process& onCPU, Gantt& gantt, const int numProcess, const bool hasTimeLimit, const int timeLimit){
 	std::vector<int> currQ(quantums);
-	bool CPUidle = true; // flag for whether CPU is busy or idle
 	while (true){
 		if (!processList.empty()) // admit processes based on their initial arrival time
 			admitProcess(sysTime, processList, MLQ[0]);
 
 		// Do context switches first.
 		// I/O side context switch
-		if (!ioQ.empty() && ioQ.begin()->remainIOBurst == 0) // some process finishes I/O, needs to get back to waitQ
-			IOContextSwitch(sysTime, MLQ, ioQ);
+		if (!ioQ.empty() && ioQ.begin()->remainIOBurst == 0) // some process finishes I/O, needs to get back to readyQ
+			popOffIO(sysTime, MLQ, ioQ);
 
 		for (auto& subQ : MLQ) // reorder each subQ if needed
-			prioritizeWaitQ(sysTime, 1, subQ);
+			prioritizeReadyQ(sysTime, 1, subQ);
 
 		if (!CPUidle){// CPU side context switch
 			if (onCPU.remainCPUBurst == 0) // current process finishes CPU burst
-				CPUContextSwitch(sysTime, currQ, quantums, MLQ, ioQ, complete, onCPU, CPUidle, 1);
+				popOffCPU(sysTime, currQ, quantums, MLQ, ioQ, complete, onCPU, CPUidle, 1);
 			else if (currQ[onCPU.queuePriority - 1] == 0) // current process hasn't finished its CPU burst but used up its quantum
-				CPUContextSwitch(sysTime, currQ, quantums, MLQ, ioQ, complete, onCPU, CPUidle, 2);
+				popOffCPU(sysTime, currQ, quantums, MLQ, ioQ, complete, onCPU, CPUidle, 2);
 			else{ // current process hasn't finished its CPU burst or quantum, but the higher priority queue has process ready to preempt the current process
 				for (int i = 0; i < onCPU.queuePriority - 1; i++){
 					if (!MLQ[i].empty() && MLQ[i].begin()->arrival == sysTime){
-						CPUContextSwitch(sysTime, currQ, quantums, MLQ, ioQ, complete, onCPU, CPUidle, 3);
+						popOffCPU(sysTime, currQ, quantums, MLQ, ioQ, complete, onCPU, CPUidle, 3);
 						break;
 					}
 				}
@@ -147,12 +144,12 @@ void MLFQ(int& sysTime, int& sysIdle, const std::vector<int>& quantums, std::vec
 					break;
 				}
 			}
-			if (!CPUidle) // print out waitQ, ioQ, and CPU info when a new process gets CPU,
-				printWhenNewPricessLoaded(sysTime, MLQ, ioQ, complete, onCPU, CPUidle);
+			if (!CPUidle) // print out readyQ, ioQ, and CPU info when a new process gets CPU,
+				printWhenNewProcessLoaded(sysTime, MLQ, ioQ, complete, onCPU, CPUidle);
 			else{
 				if (!gantt.preIdle){ // CPU remains idle, nothing happens.
 					// print idle condition and update Gantt Chart with it
-					printWhenNewPricessLoaded(sysTime, MLQ, ioQ, complete, onCPU, CPUidle);
+					printWhenNewProcessLoaded(sysTime, MLQ, ioQ, complete, onCPU, CPUidle);
 					updateGanttChart(sysTime, onCPU, gantt, CPUidle);
 				}
 				sysIdle++;
@@ -172,32 +169,31 @@ void MLFQ(int& sysTime, int& sysIdle, const std::vector<int>& quantums, std::vec
 	}
 }
 
-void SJF(int& sysTime, int& sysIdle, std::vector<Process>& processList, std::vector<Process>& waitQ, std::vector<Process>& ioQ, std::vector<Process>& complete, Process& onCPU, Gantt& gantt, const int numProcess, const bool hasTimeLimit, const int timeLimit){
-	bool CPUidle = true; // flag for whether CPU is busy or idle
+void SJF(int& sysTime, int& sysIdle, bool& CPUidle, std::vector<Process>& processList, std::vector<Process>& readyQ, std::vector<Process>& ioQ, std::vector<Process>& complete, Process& onCPU, Gantt& gantt, const int numProcess, const bool hasTimeLimit, const int timeLimit){
 	while (true){
 		if (!processList.empty()) // admit processes based on their initial arrival time
-			admitProcess(sysTime, processList, waitQ);
+			admitProcess(sysTime, processList, readyQ);
 
 		// Do context switches first
 		if (!ioQ.empty() && ioQ.begin()->remainIOBurst == 0) // some process finishes I/O, I/O context switch
-			IOContextSwitch(sysTime, waitQ, ioQ);
+			popOffIO(sysTime, readyQ, ioQ);
 
-		prioritizeWaitQ(sysTime, 2, waitQ); // reorder waitQ if needed
+		prioritizeReadyQ(sysTime, 2, readyQ); // reorder readyQ if needed
 
 		if (!CPUidle && onCPU.remainCPUBurst == 0) // current process finishes CPU burst, CPU context switch
-			CPUContextSwitch(sysTime, waitQ, ioQ, complete, onCPU, CPUidle, 1);
+			popOffCPU(sysTime, readyQ, ioQ, complete, onCPU, CPUidle, 1);
 
 		if (CPUidle){ // CPU idle, test whether okay to push process onto CPU
-			if (!waitQ.empty() && waitQ.begin()->arrival <= sysTime){ // CPU and waitQ both ready to accept new process
-				pushToCPU(sysTime, waitQ, ioQ, complete, onCPU, CPUidle, hasTimeLimit, timeLimit); // load a process to CPU, if possible
-				// print out waitQ, ioQ, and CPU info when a new process gets CPU, also provide information to generate Gantt Chart
-				printWhenNewPricessLoaded(sysTime, waitQ, ioQ, complete, onCPU, CPUidle);
+			if (!readyQ.empty() && readyQ.begin()->arrival <= sysTime){ // CPU and readyQ both ready to accept new process
+				pushToCPU(sysTime, readyQ, ioQ, complete, onCPU, CPUidle, hasTimeLimit, timeLimit); // load a process to CPU, if possible
+				// print out readyQ, ioQ, and CPU info when a new process gets CPU, also provide information to generate Gantt Chart
+				printWhenNewProcessLoaded(sysTime, readyQ, ioQ, complete, onCPU, CPUidle);
 				updateGanttChart(sysTime, onCPU, gantt, CPUidle);
 			}
 			else{
 				if (!gantt.preIdle){ // CPU remains idle, nothing happens.
 					// print idle condition and update Gantt Chart with it
-					printWhenNewPricessLoaded(sysTime, waitQ, ioQ, complete, onCPU, CPUidle);
+					printWhenNewProcessLoaded(sysTime, readyQ, ioQ, complete, onCPU, CPUidle);
 					updateGanttChart(sysTime, onCPU, gantt, CPUidle);
 				}
 				sysIdle++;

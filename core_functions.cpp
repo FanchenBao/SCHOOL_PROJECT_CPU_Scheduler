@@ -21,33 +21,33 @@ Process::Process(): number(0), index(0), ptSize(0), arrival(0), remainCPUBurst(0
 
 
 // CPU and I/O actions
-void admitProcess(int sysTime, std::vector<Process>& processList, std::vector<Process>& waitQ){
+void admitProcess(int sysTime, std::vector<Process>& processList, std::vector<Process>& readyQ){
 	// admit new process based on its arrival time
-	for (auto it = processList.begin(); it != processList.end();){ // only load processes whose arrival time is the same as sysTime onto waitQ
+	for (auto it = processList.begin(); it != processList.end();){ // only load processes whose arrival time is the same as sysTime onto readyQ
 		if (it->arrival == sysTime){
-			waitQ.push_back(*it); // initially all processes is in queue 1
+			readyQ.push_back(*it); // initially all processes is in queue 1
 			it = processList.erase(it);
 		}
 		else {return;}
 	}
 }
 
-void prioritizeWaitQ(int sysTime, int priorityType, std::vector<Process>& waitQ){
-	// reorder waitQ if necessary, based on priorityType
+void prioritizeReadyQ(int sysTime, int priorityType, std::vector<Process>& readyQ){
+	// reorder readyQ if necessary, based on priorityType
 	// priorityType = 1 (arrival time (FCFS, RR)), 2 (CPU burst (SJF, SRF))
 	switch (priorityType){
 		case 1: {// priority is arrival time. No major reordering needed, except when multiple processes have same arrival time at the top
-			if (!waitQ.empty() && waitQ.begin()->arrival <= sysTime)
-				handleSamePriorityInWaitQ(waitQ, 1); // check same arrival time situation. Comment this line if one does not want to pick the smallest process number to go first if multiple arrival times are the same
+			if (!readyQ.empty() && readyQ.begin()->arrival <= sysTime)
+				handleSamePriorityInReadyQ(readyQ, 1); // check same arrival time situation. Comment this line if one does not want to pick the smallest process number to go first if multiple arrival times are the same
 			break;
 		}
 		case 2: {// priority is the remaining CPU burst
-			if (!waitQ.empty() && waitQ.begin()->arrival <= sysTime){
-				auto it = waitQ.begin();
-				for (; it != waitQ.end(); it++) // reorder based on CPU burst for all those processes eligible for CPU now
+			if (!readyQ.empty() && readyQ.begin()->arrival <= sysTime){
+				auto it = readyQ.begin();
+				for (; it != readyQ.end(); it++) // reorder based on CPU burst for all those processes eligible for CPU now
 					if (it->arrival > sysTime) {break;}
-				std::sort(waitQ.begin(), it, CompareRemainCPUBurst()); // sort these eligible processes based on remaining CPU burst
-				handleSamePriorityInWaitQ(waitQ, 2); // for processes at the beginning having same CPU burst, reorder based on process number
+				std::sort(readyQ.begin(), it, CompareRemainCPUBurst()); // sort these eligible processes based on remaining CPU burst
+				handleSamePriorityInReadyQ(readyQ, 2); // for processes at the beginning having same CPU burst, reorder based on process number
 			}
 			break;
 		}
@@ -58,8 +58,8 @@ void prioritizeWaitQ(int sysTime, int priorityType, std::vector<Process>& waitQ)
 	}
 }
 
-void IOContextSwitch(int sysTime, std::vector<Process>& waitQ, std::vector<Process>& ioQ){
-	// I/O context switch and push all processes that finish I/O to wait queue
+void popOffIO(int sysTime, std::vector<Process>& readyQ, std::vector<Process>& ioQ){
+	// I/O context switch and push all processes that finish I/O to ready queue
 	std::vector<Process> targets;
 	handleSameFinishTimeInIOQ(sysTime, ioQ, targets);
 	for (auto& t : targets){
@@ -67,10 +67,10 @@ void IOContextSwitch(int sysTime, std::vector<Process>& waitQ, std::vector<Proce
 		t.arrival = sysTime; // update arrival time
 	}
 
-	waitQ.insert(waitQ.end(), targets.begin(), targets.end()); // push process on waitQ
+	readyQ.insert(readyQ.end(), targets.begin(), targets.end()); // push process on readyQ
 }
 
-void IOContextSwitch(int sysTime, std::vector<std::vector<Process> >& MLQ, std::vector<Process>& ioQ){
+void popOffIO(int sysTime, std::vector<std::vector<Process> >& MLQ, std::vector<Process>& ioQ){
 	// I/O context switch and push all processes that finish I/O to wait queue
 	// Overloaded for MLFQ
 	std::vector<Process> targets;
@@ -82,8 +82,8 @@ void IOContextSwitch(int sysTime, std::vector<std::vector<Process> >& MLQ, std::
 	}
 }
 
-void CPUContextSwitch(int sysTime, std::vector<Process>& waitQ, std::vector<Process>& ioQ, std::vector<Process>& complete, Process& onCPU, bool& CPUidle, int reasonForSwitch){
-	// Perform CPU context switch and push the process to I/O or completion.
+void popOffCPU(int sysTime, std::vector<Process>& readyQ, std::vector<Process>& ioQ, std::vector<Process>& complete, Process& onCPU, bool& CPUidle, int reasonForSwitch){
+	// Perform CPU context switch and push the process to I/O, completion, or some readyQ.
 	// reasonForSwitch = 1 (current CPU burst completes), 2 (current quantum dried up), 3 (preempted by higher priority process)
 	onCPU.totalCPUBurst += onCPU.processTime[onCPU.index] - onCPU.remainCPUBurst; // update totalCPUBurst
 	onCPU.processTime[onCPU.index] = onCPU.remainCPUBurst; // update CPU burst info in processTime array
@@ -101,7 +101,7 @@ void CPUContextSwitch(int sysTime, std::vector<Process>& waitQ, std::vector<Proc
 		break;
 	case 2: // quantum used up
 		onCPU.arrival = sysTime; // reset arrival time
-		waitQ.push_back(onCPU); // pushed to the back of waitQ
+		readyQ.push_back(onCPU); // pushed to the back of readyQ
 		break;
 	default:
 		std::cerr << "Fatal Error: Check reason for CPU context switch." << std::endl;
@@ -110,8 +110,8 @@ void CPUContextSwitch(int sysTime, std::vector<Process>& waitQ, std::vector<Proc
 	CPUidle = true; // set CPU to idle
 }
 
-void CPUContextSwitch(int sysTime, std::vector<int>& currQ, const std::vector<int>& quantums, std::vector<std::vector<Process> >& MLQ, std::vector<Process>& ioQ, std::vector<Process>& complete, Process& onCPU, bool& CPUidle, int reasonForSwitch){
-	// Perform CPU context switch and push the process to I/O or completion.
+void popOffCPU(int sysTime, std::vector<int>& currQ, const std::vector<int>& quantums, std::vector<std::vector<Process> >& MLQ, std::vector<Process>& ioQ, std::vector<Process>& complete, Process& onCPU, bool& CPUidle, int reasonForSwitch){
+	// Perform CPU context switch and push the process to I/O, completion, or some readyQ.
 	// Used specifically for MLFQ
 	// reasonForSwitch = 1 (current CPU burst completes), 2 (current quantum dried up), 3 (preempted by higher priority process)
 	onCPU.totalCPUBurst += onCPU.processTime[onCPU.index] - onCPU.remainCPUBurst; // update totalCPUBurst
@@ -150,20 +150,20 @@ void CPUContextSwitch(int sysTime, std::vector<int>& currQ, const std::vector<in
 
 
 void pushToIO(std::vector<Process>& ioQ, Process& onCPU){
-	// kick a process off CPU and onto I/O queue
+	// pop a process off CPU and onto I/O queue
 	onCPU.remainIOBurst = onCPU.processTime[++(onCPU.index)]; // move index to I/O element of processTime and update remainIOBurst
 	ioQ.push_back(onCPU);
 	std::push_heap(ioQ.begin(), ioQ.end(), CompareIO());
 }
 
-void pushToCPU(int sysTime, std::vector<Process>& waitQ, std::vector<Process>& ioQ, std::vector<Process>& complete, Process& onCPU, bool& CPUidle, bool hasTimeLimit, int timeLimit){
+void pushToCPU(int sysTime, std::vector<Process>& readyQ, std::vector<Process>& ioQ, std::vector<Process>& complete, Process& onCPU, bool& CPUidle, bool hasTimeLimit, int timeLimit){
 	// push new process to CPU
-	onCPU = *waitQ.begin();
+	onCPU = *readyQ.begin();
 	if (onCPU.totalCPUBurst == 0) // process is serviced for the first time
 		onCPU.responseTime = sysTime - onCPU.arrival;
 	if (!hasTimeLimit || sysTime < timeLimit) // update wait time (this is to make sure the process loaded onto CPU at the point of timeLimit does not have its last wait time counted, because this process is considered DONE before time limit)
 		onCPU.waitTime += sysTime - onCPU.arrival;
-	waitQ.erase(waitQ.begin());
+	readyQ.erase(readyQ.begin());
 	CPUidle = false;
 }
 

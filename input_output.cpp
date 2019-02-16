@@ -13,6 +13,7 @@ void updateGanttChart(int sysTime, Process& onCPU, Gantt& gantt, bool CPUidle){
 	if (!CPUidle){ // a new process is currently on CPU
 		gantt.processes.push_back("P" + std::to_string(onCPU.number));
 		gantt.preIdle = false;
+		gantt.numCPUContextSwitch++;
 	}
 	else{ // CPU in idle
 		gantt.processes.push_back("IDLE");
@@ -31,12 +32,12 @@ void printGanttChart(const Gantt& gantt){
 	std::cout <<"\n";
 }
 
-void printRT_WT_TT(const std::vector<Process>& waitQ, const std::vector<Process>& ioQ, const std::vector<Process>& complete, const Process& onCPU, const int numProcess, const bool hasTimeLimit){
+void printRT_WT_TT(const std::vector<Process>& readyQ, const std::vector<Process>& ioQ, const std::vector<Process>& complete, const Process& onCPU, const int numProcess, const bool hasTimeLimit){
 	// print out RT, WT, and TT for each process
 	std::vector<Process> forPrint(complete.begin(), complete.end());
 	if (hasTimeLimit){ // scheduling exits prematurely, processes are scattered in different places.
 		forPrint.insert(forPrint.end(), ioQ.begin(), ioQ.end());
-		forPrint.insert(forPrint.end(), waitQ.begin(), waitQ.end());
+		forPrint.insert(forPrint.end(), readyQ.begin(), readyQ.end());
 		forPrint.push_back(onCPU);
 	}
 	std::sort(forPrint.begin(), forPrint.end(), ComparePNumber());
@@ -57,7 +58,7 @@ void printRT_WT_TT(const std::vector<Process>& waitQ, const std::vector<Process>
 			<< static_cast<double>(allTT) / numProcess << "\t" << std::endl;
 }
 
-void printWhenNewPricessLoaded(int sysTime, const std::vector<Process>& waitQ, const std::vector<Process>& ioQ, const std::vector<Process>& complete, const Process& onCPU, const bool CPUidle){
+void printWhenNewProcessLoaded(int sysTime, const std::vector<Process>& readyQ, const std::vector<Process>& ioQ, const std::vector<Process>& complete, const Process& onCPU, const bool CPUidle){
 	// print information of each queue when a new process is just loaded onto CPU.
 	std::cout << "Current Time = " << sysTime << std::endl;
 	std::cout << "Next process on the CPU: ";
@@ -69,10 +70,10 @@ void printWhenNewPricessLoaded(int sysTime, const std::vector<Process>& waitQ, c
 		std::cout <<".";
 	std::cout << "\nList of processes in the ready queue:\n";
 	std::cout << "\tProcess\t\tBurst\n";
-	if (waitQ.empty())
+	if (readyQ.empty())
 		std::cout << "\t[empty]\n";
 	else{
-		for (auto p : waitQ)
+		for (auto p : readyQ)
 			std::cout << "\tP" << p.number << "\t\t" << p.remainCPUBurst << std::endl;
 	}
 	for (int i = 0; i < 60; i++)
@@ -129,7 +130,7 @@ void printRT_WT_TT(const std::vector<std::vector<Process> >& MLQ, const std::vec
 			<< static_cast<double>(allTT) / numProcess << "\t" << std::endl;
 }
 
-void printWhenNewPricessLoaded(int sysTime, const std::vector<std::vector<Process> >& MLQ, const std::vector<Process>& ioQ, const std::vector<Process>& complete, const Process& onCPU, const bool CPUidle){
+void printWhenNewProcessLoaded(int sysTime, const std::vector<std::vector<Process> >& MLQ, const std::vector<Process>& ioQ, const std::vector<Process>& complete, const Process& onCPU, const bool CPUidle){
 	// print information of each queue when a new process is just loaded onto CPU. Overloaded for MLFQ
 	std::cout << "Current Time = " << sysTime << std::endl;
 	std::cout << "Next process on the CPU: ";

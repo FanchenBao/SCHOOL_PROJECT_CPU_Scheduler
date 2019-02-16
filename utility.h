@@ -11,8 +11,8 @@
 
 #include "core_functions.h"
 
-// handle multiple ready process in waitQ and ioQ
-void handleSamePriorityInWaitQ(std::vector<Process>& waitQ, int priorityType);
+// handle multiple ready process in readyQ and ioQ
+void handleSamePriorityInReadyQ(std::vector<Process>& readyQ, int priorityType);
 void handleSameFinishTimeInIOQ(int sysTime, std::vector<Process>& ioQ, std::vector<Process>& targets);
 
 

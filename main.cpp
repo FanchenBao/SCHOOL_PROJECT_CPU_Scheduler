@@ -10,23 +10,27 @@
 
 int main() {
 	std::vector<Process> processList;
-	std::vector<Process> waitQ;
+	std::vector<Process> readyQ;
 	std::vector<Process> ioQ;
 	std::vector<Process> complete;
 	Process onCPU;
 	Gantt gantt;
 	std::vector<std::vector<Process> > MLQ; // multilevel queues
 
-	std::cout << std::fixed << std::setprecision(2); // output rule
-
-	bool hasTimeLimit = true;
-//	bool hasTimeLimit = false;
-	int timeLimit = 150;
+	// system parameters
 	int sysTime = 0; // initial system time
 	int sysIdle = 0; // total idle time in system
-	int numProcess = 9; // total number of processes
+	bool CPUidle = true; // flag for whether CPU is busy or idle
 
-//	 Testing Data
+	std::cout << std::fixed << std::setprecision(2); // output rule
+
+	// input parameters
+	int numProcess = 9; // total number of processes
+//	bool hasTimeLimit = true;
+	bool hasTimeLimit = false;
+	int timeLimit = 150;
+
+	// Testing Data
 	int info[9][30] = {{4, 27, 3, 31, 2, 43, 4, 18, 4, 22, 4, 26, 3, 24, 4},
 						{16, 24, 17, 21, 5, 36, 16, 26, 7, 31, 13, 28, 11, 21, 6, 13, 3, 11, 4},
 						{8, 33, 12, 41, 18, 65, 14, 21, 4, 61, 15, 18, 14, 26, 5, 31, 6},
@@ -43,7 +47,7 @@ int main() {
 
 //	int info[5][30] = {{10},{11},{12},{8},{5}};
 
-	// initialize all processes, put them all in waitQ in the order of their number.
+	// initialize all processes, put them all in readyQ in the order of their number.
 	for (int i = 0; i < numProcess; i++) {processList.emplace_back(i+1, info[i], info[i][0]);}
 
 //	processList[0].arrival = 0;
@@ -66,27 +70,28 @@ int main() {
 
 
 	// FCFS
-	FCFS(sysTime, sysIdle, processList, waitQ, ioQ, complete, onCPU, gantt, numProcess, hasTimeLimit, timeLimit);
+//	FCFS(sysTime, sysIdle, CPUidle, processList, readyQ, ioQ, complete, onCPU, gantt, numProcess, hasTimeLimit, timeLimit);
 
 	// RR
-//	RR(sysTime, sysIdle, 5, processList, waitQ, ioQ, complete, onCPU, gantt, numProcess, hasTimeLimit, timeLimit);
+//	RR(sysTime, sysIdle, CPUidle, 5, processList, readyQ, ioQ, complete, onCPU, gantt, numProcess, hasTimeLimit, timeLimit);
 
 	// MLFQ
 	int numSubQ = 3;
 	for (int i = 0; i < numSubQ; i++) // add subqueues to MLQ
 		MLQ.emplace_back(std::vector<Process>());
 	std::vector<int> quantums = {4, 9, -1}; // all non-RR queues default to -1 quantum (set to -1 such that non-RR queue quantum would never reach 0 to trigger a quantum drying up event)
-//	MLFQ(sysTime, sysIdle, quantums, processList, MLQ, ioQ, complete, onCPU, gantt, numProcess, hasTimeLimit, timeLimit);
+	MLFQ(sysTime, sysIdle, CPUidle, quantums, processList, MLQ, ioQ, complete, onCPU, gantt, numProcess, hasTimeLimit, timeLimit);
 
 	// SJF
-//	SJF(sysTime, sysIdle, processList, waitQ, ioQ, complete, onCPU, gantt, numProcess, hasTimeLimit, timeLimit);
+//	SJF(sysTime, sysIdle, CPUidle, processList, readyQ, ioQ, complete, onCPU, gantt, numProcess, hasTimeLimit, timeLimit);
 
 
 
 	// print out final results
 	printGanttChart(gantt);
-	printRT_WT_TT(waitQ, ioQ, complete, onCPU, numProcess, hasTimeLimit);
-//	printRT_WT_TT(MLQ, ioQ, complete, onCPU, numProcess, hasTimeLimit); // for MLFQ
+	std::cout << "\nTotal number of CPU context switches: " << gantt.numCPUContextSwitch << std::endl;
+//	printRT_WT_TT(readyQ, ioQ, complete, onCPU, numProcess, hasTimeLimit);
+	printRT_WT_TT(MLQ, ioQ, complete, onCPU, numProcess, hasTimeLimit); // for MLFQ
 
 	std::cout << "\nTotal Time:\t\t" << sysTime << std::endl;
 	std::cout << "Idle Time:\t\t" << sysIdle << std::endl;

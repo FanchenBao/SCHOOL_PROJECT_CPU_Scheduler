@@ -12,6 +12,6 @@ To do list
     * RR (Round Robin, preemptive) **Complete**
     * SRF (Shortest Remanining time First, preemptive)
     * Preemptive Priority (preemptive)
-    * MLQ (MultiLevel Queue, lowest priority queue must be FCFS, other queues must be RR with higher priority having smaller quantum)
+    * MLQ_noF (MultiLevel Queue non Feedback, lowest priority queue must be FCFS, other queues must be RR with higher priority having smaller quantum)
     * MLFQ (MultiLevel Feedback Queue, same rule as MLQ) **Complete**
 * Console user interface

@@ -8,22 +8,22 @@
 #include "utility.h"
 
 
-// handle multiple ready process in waitQ and ioQ
-void handleSamePriorityInWaitQ(std::vector<Process>& waitQ, int priorityType){
-	// The top of waitQ should be pushed onto CPU, BUT if there are multiple processes with the
+// handle multiple ready process in readyQ and ioQ
+void handleSamePriorityInReadyQ(std::vector<Process>& readyQ, int priorityType){
+	// The top of readyQ should be pushed onto CPU, BUT if there are multiple processes with the
 	// same priority and all ready to go to CPU, only the one with the smallest process number gets CPU first.
 	// priorityType = 1 (arrival time (FCFS, RR)), 2 (CPU burst (SJF, SRF))
-	auto it = ++(waitQ.begin());
+	auto it = ++(readyQ.begin());
 	bool doneWithLoop = false;
-	for (; it != waitQ.end(); it++){ // locate all processes that are immediately eligible for CPU
+	for (; it != readyQ.end(); it++){ // locate all processes that are immediately eligible for CPU
 		switch (priorityType){
 			case 1:{
-				if (it->arrival != waitQ.begin()->arrival)
+				if (it->arrival != readyQ.begin()->arrival)
 					doneWithLoop = true;
 				break;
 			}
 			case 2:{
-				if (it->remainCPUBurst != waitQ.begin()->remainCPUBurst)
+				if (it->remainCPUBurst != readyQ.begin()->remainCPUBurst)
 					doneWithLoop = true;
 				break;
 			}
@@ -35,7 +35,7 @@ void handleSamePriorityInWaitQ(std::vector<Process>& waitQ, int priorityType){
 		if (doneWithLoop) {break;}
 
 	}
-	std::sort(waitQ.begin(), it, ComparePNumber()); // sort these eligible processes based on process number
+	std::sort(readyQ.begin(), it, ComparePNumber()); // sort these eligible processes based on process number
 }
 
 void handleSameFinishTimeInIOQ(int sysTime, std::vector<Process>& ioQ, std::vector<Process>& targets){

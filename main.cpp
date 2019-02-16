@@ -19,7 +19,7 @@ void FCFS(int& sysTime, std::vector<Process>& processList, std::vector<Process>&
 			IOContextSwitch(sysTime, waitQ, ioQ);
 
 		if (!CPUidle && onCPU.remainCPUBurst == 0) // current process finishes CPU burst, CPU context switch
-			CPUContextSwitch(sysTime, waitQ, ioQ, complete, onCPU, CPUidle, false);
+			CPUContextSwitch(sysTime, waitQ, ioQ, complete, onCPU, CPUidle, 1);
 
 		if (CPUidle){ // CPU idle, test whether okay to push process onto CPU
 			if (!waitQ.empty() && waitQ.begin()->arrival <= sysTime){ // CPU and waitQ both ready to accept new process
@@ -29,6 +29,7 @@ void FCFS(int& sysTime, std::vector<Process>& processList, std::vector<Process>&
 				updateGanttChart(sysTime, onCPU, gantt, CPUidle);
 			}
 			else if (!gantt.preIdle){ // CPU remains idle, nothing happens.
+				// print idle condition and update Gantt Chart with it
 				printWhenNewPricessLoaded(sysTime, waitQ, ioQ, complete, onCPU, CPUidle);
 				updateGanttChart(sysTime, onCPU, gantt, CPUidle);
 			}
@@ -59,11 +60,11 @@ void RR(int& sysTime, int quant, std::vector<Process>& processList, std::vector<
 
 		if (!CPUidle){ // CPU side context switch
 			if (onCPU.remainCPUBurst == 0){ // current process finishes CPU burst
-				CPUContextSwitch(sysTime, waitQ, ioQ, complete, onCPU, CPUidle, false);
+				CPUContextSwitch(sysTime, waitQ, ioQ, complete, onCPU, CPUidle, 1);
 				currQuant = quant; // reset quantum
 			}
 			else if (currQuant == 0){ // current process hasn't finished its CPU burst but used up its quantum
-				CPUContextSwitch(sysTime, waitQ,ioQ, complete, onCPU, CPUidle, true);
+				CPUContextSwitch(sysTime, waitQ,ioQ, complete, onCPU, CPUidle, 2);
 				currQuant = quant; // reset quantum
 			}
 		}
@@ -76,6 +77,7 @@ void RR(int& sysTime, int quant, std::vector<Process>& processList, std::vector<
 				printWhenNewPricessLoaded(sysTime, waitQ, ioQ, complete, onCPU, CPUidle);
 			}
 			else if (!gantt.preIdle){ // CPU remains idle, nothing happens.
+				// print idle condition and update Gantt Chart with it
 				updateGanttChart(sysTime, onCPU, gantt, CPUidle);
 				printWhenNewPricessLoaded(sysTime, waitQ, ioQ, complete, onCPU, CPUidle);
 			}
@@ -105,12 +107,10 @@ void MLFQ(int& sysTime, const std::vector<int>& quantums, std::vector<Process>& 
 			IOContextSwitch(sysTime, MLQ, ioQ);
 
 		if (!CPUidle){// CPU side context switch
-			if (onCPU.remainCPUBurst == 0){ // current process finishes CPU burst
+			if (onCPU.remainCPUBurst == 0) // current process finishes CPU burst
 				CPUContextSwitch(sysTime, currQ, quantums, MLQ, ioQ, complete, onCPU, CPUidle, 1);
-			}
-			else if (currQ[onCPU.queuePriority - 1] == 0){ // current process hasn't finished its CPU burst but used up its quantum
+			else if (currQ[onCPU.queuePriority - 1] == 0) // current process hasn't finished its CPU burst but used up its quantum
 				CPUContextSwitch(sysTime, currQ, quantums, MLQ, ioQ, complete, onCPU, CPUidle, 2);
-			}
 			else{ // current process hasn't finished its CPU burst or quantum, but the higher priority queue has process ready to preempt the current process
 				for (int i = 0; i < onCPU.queuePriority - 1; i++){
 					if (!MLQ[i].empty() && MLQ[i].begin()->arrival == sysTime){
@@ -126,15 +126,15 @@ void MLFQ(int& sysTime, const std::vector<int>& quantums, std::vector<Process>& 
 			for (auto& subQ : MLQ){
 				if (!subQ.empty() && subQ.begin()->arrival <= sysTime){
 					pushToCPU(sysTime, subQ, ioQ, complete, onCPU, CPUidle, hasTimeLimit, timeLimit);
-					// print out waitQ, ioQ, and CPU info when a new process gets CPU, also provide information to generate Gantt Chart
+					// Provide information to generate Gantt Chart
 					updateGanttChart(sysTime, onCPU, gantt, CPUidle);
 					break;
 				}
 			}
-			if (!CPUidle){
+			if (!CPUidle) // print out waitQ, ioQ, and CPU info when a new process gets CPU,
 				printWhenNewPricessLoaded(sysTime, MLQ, ioQ, complete, onCPU, CPUidle);
-			}
 			else if (CPUidle && !gantt.preIdle){ // CPU remains idle, nothing happens.
+				// print idle condition and update Gantt Chart with it
 				printWhenNewPricessLoaded(sysTime, MLQ, ioQ, complete, onCPU, CPUidle);
 				updateGanttChart(sysTime, onCPU, gantt, CPUidle);
 			}
@@ -210,10 +210,10 @@ int main() {
 
 
 	// FCFS
-	FCFS(sysTime, processList, waitQ, ioQ, complete, onCPU, gantt, hasTimeLimit, timeLimit);
+//	FCFS(sysTime, processList, waitQ, ioQ, complete, onCPU, gantt, hasTimeLimit, timeLimit);
 
 	// RR
-//	RR(sysTime, 5, processList, waitQ, ioQ, complete, onCPU, gantt, hasTimeLimit, timeLimit);
+	RR(sysTime, 5, processList, waitQ, ioQ, complete, onCPU, gantt, hasTimeLimit, timeLimit);
 
 	// MLFQ
 	int numSubQ = 3;

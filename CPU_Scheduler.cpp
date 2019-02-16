@@ -55,9 +55,9 @@ void IOContextSwitch(int sysTime, std::vector<std::vector<Process> >& MLQ, std::
 	}
 }
 
-void CPUContextSwitch(int sysTime, std::vector<Process>& waitQ, std::vector<Process>& ioQ, std::vector<Process>& complete, Process& onCPU, bool& CPUidle, bool exceedQuant){
+void CPUContextSwitch(int sysTime, std::vector<Process>& waitQ, std::vector<Process>& ioQ, std::vector<Process>& complete, Process& onCPU, bool& CPUidle, int reasonForSwitch){
 	// Perform CPU context switch and push the process to I/O or completion.
-	// exceedQuant determines whether the context switch is initiated by reaching quantum under RR
+	// reasonForSwitch = 1 (current CPU burst completes), 2 (current quantum dried up), 3 (preempted by higher priority process)
 	onCPU.totalCPUBurst += onCPU.processTime[onCPU.index] - onCPU.remainCPUBurst; // update totalCPUBurst
 	onCPU.processTime[onCPU.index] = onCPU.remainCPUBurst; // update CPU burst info in processTime array
 	if (onCPU.index > 0){
@@ -67,14 +67,18 @@ void CPUContextSwitch(int sysTime, std::vector<Process>& waitQ, std::vector<Proc
 	// update turnaround time. TT = wait time + CPU burst (just finished) + I/O time right before
 	onCPU.turnaroundTime = onCPU.waitTime + onCPU.totalCPUBurst + onCPU.totalIOBurst;
 
-	if (exceedQuant){ // context switch due to quantum dried up.
-		onCPU.arrival = sysTime; // reset arrival time
-		waitQ.push_back(onCPU); // pushed to the back of waitQ
-	}
-	else{ // context switch due to complete previous burst
-		// still more I/O to do
+	switch (reasonForSwitch){
+	case 1:
 		if (onCPU.index < onCPU.ptSize - 2) {pushToIO(ioQ, onCPU);} // push current process from CPU to I/O
 		else {complete.push_back(onCPU);} // no more I/O, i.e. all bursts have been completed.
+		break;
+	case 2:
+		onCPU.arrival = sysTime; // reset arrival time
+		waitQ.push_back(onCPU); // pushed to the back of waitQ
+		break;
+	default:
+		std::cerr << "Fatal Error: Check reason for CPU context switch." << std::endl;
+		std::exit(1);
 	}
 	CPUidle = true; // set CPU to idle
 }

@@ -19,14 +19,14 @@ struct Gantt{ // for producing Gantt Chart
 
 // output
 void printGanttChart(const Gantt& gantt); // print out Gantt Chart
-void printRT_WT_TT(const std::vector<Process>& waitQ, const std::vector<Process>& ioQ, const std::vector<Process>& complete, const Process& onCPU, bool hasTimeLimit); // print out RT, WT, and TT for each process
+void printRT_WT_TT(const std::vector<Process>& waitQ, const std::vector<Process>& ioQ, const std::vector<Process>& complete, const Process& onCPU, const int numProcess, const bool hasTimeLimit); // print out RT, WT, and TT for each process
 void printWhenNewPricessLoaded(int sysTime, const std::vector<Process>& waitQ, const std::vector<Process>& ioQ, const std::vector<Process>& complete, const Process& onCPU, const bool CPUidle); // print information of each queue when a new process is just loaded onto CPU
 
 // Miscellaneous
 void updateGanttChart(int sysTime, Process& onCPU, Gantt& gantt, bool CPUidle); // Gather info to print Gantt Chart
 
 // for MLFQ, these functions are overloaded
-void printRT_WT_TT(const std::vector<std::vector<Process> >& MLQ, const std::vector<Process>& ioQ, const std::vector<Process>& complete, const Process& onCPU, bool hasTimeLimit);
+void printRT_WT_TT(const std::vector<std::vector<Process> >& MLQ, const std::vector<Process>& ioQ, const std::vector<Process>& complete, const Process& onCPU, const int numProcess, const bool hasTimeLimit);
 void printWhenNewPricessLoaded(int sysTime, const std::vector<std::vector<Process> >& MLQ, const std::vector<Process>& ioQ, const std::vector<Process>& complete, const Process& onCPU, const bool CPUidle);
 
 

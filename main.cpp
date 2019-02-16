@@ -6,6 +6,7 @@
 //============================================================================
 
 #include "scheduler_algorithm.h"
+#include <iomanip>
 
 int main() {
 	std::vector<Process> processList;
@@ -16,10 +17,13 @@ int main() {
 	Gantt gantt;
 	std::vector<std::vector<Process> > MLQ; // multilevel queues
 
-//	bool hasTimeLimit = true;
-	bool hasTimeLimit = false;
-	int timeLimit = 147;
+	std::cout << std::fixed << std::setprecision(2); // output rule
+
+	bool hasTimeLimit = true;
+//	bool hasTimeLimit = false;
+	int timeLimit = 150;
 	int sysTime = 0; // initial system time
+	int sysIdle = 0; // total idle time in system
 	int numProcess = 9; // total number of processes
 
 //	 Testing Data
@@ -62,27 +66,31 @@ int main() {
 
 
 	// FCFS
-//	FCFS(sysTime, processList, waitQ, ioQ, complete, onCPU, gantt, hasTimeLimit, timeLimit);
+	FCFS(sysTime, sysIdle, processList, waitQ, ioQ, complete, onCPU, gantt, numProcess, hasTimeLimit, timeLimit);
 
 	// RR
-//	RR(sysTime, 5, processList, waitQ, ioQ, complete, onCPU, gantt, hasTimeLimit, timeLimit);
+//	RR(sysTime, sysIdle, 5, processList, waitQ, ioQ, complete, onCPU, gantt, numProcess, hasTimeLimit, timeLimit);
 
 	// MLFQ
 	int numSubQ = 3;
 	for (int i = 0; i < numSubQ; i++) // add subqueues to MLQ
 		MLQ.emplace_back(std::vector<Process>());
 	std::vector<int> quantums = {4, 9, -1}; // all non-RR queues default to -1 quantum (set to -1 such that non-RR queue quantum would never reach 0 to trigger a quantum drying up event)
-//	MLFQ(sysTime, quantums, processList, MLQ, ioQ, complete, onCPU, gantt, numProcess, hasTimeLimit, timeLimit);
+//	MLFQ(sysTime, sysIdle, quantums, processList, MLQ, ioQ, complete, onCPU, gantt, numProcess, hasTimeLimit, timeLimit);
 
 	// SJF
-	SJF(sysTime, processList, waitQ, ioQ, complete, onCPU, gantt, hasTimeLimit, timeLimit);
+//	SJF(sysTime, sysIdle, processList, waitQ, ioQ, complete, onCPU, gantt, numProcess, hasTimeLimit, timeLimit);
 
 
 
 	// print out final results
 	printGanttChart(gantt);
-	printRT_WT_TT(waitQ, ioQ, complete, onCPU, hasTimeLimit);
-//	printRT_WT_TT(MLQ, ioQ, complete, onCPU, hasTimeLimit); // for MLFQ
+	printRT_WT_TT(waitQ, ioQ, complete, onCPU, numProcess, hasTimeLimit);
+//	printRT_WT_TT(MLQ, ioQ, complete, onCPU, numProcess, hasTimeLimit); // for MLFQ
+
+	std::cout << "\nTotal Time:\t\t" << sysTime << std::endl;
+	std::cout << "Idle Time:\t\t" << sysIdle << std::endl;
+	std::cout << "CPU Utilization:\t" << static_cast<double>(sysTime - sysIdle) / sysTime << std::endl;
 
 	return 0;
 }

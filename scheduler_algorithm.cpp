@@ -7,7 +7,7 @@
 
 #include "scheduler_algorithm.h"
 
-void FCFS(int& sysTime, std::vector<Process>& processList, std::vector<Process>& waitQ, std::vector<Process>& ioQ, std::vector<Process>& complete, Process& onCPU, Gantt& gantt, bool hasTimeLimit, int timeLimit){
+void FCFS(int& sysTime, int& sysIdle, std::vector<Process>& processList, std::vector<Process>& waitQ, std::vector<Process>& ioQ, std::vector<Process>& complete, Process& onCPU, Gantt& gantt, const int numProcess, const bool hasTimeLimit, const int timeLimit){
 	bool CPUidle = true; // flag for whether CPU is busy or idle
 	while (true){
 		if (!processList.empty()) // admit processes based on their initial arrival time
@@ -29,15 +29,20 @@ void FCFS(int& sysTime, std::vector<Process>& processList, std::vector<Process>&
 				printWhenNewPricessLoaded(sysTime, waitQ, ioQ, complete, onCPU, CPUidle);
 				updateGanttChart(sysTime, onCPU, gantt, CPUidle);
 			}
-			else if (!gantt.preIdle){ // CPU remains idle, nothing happens.
-				// print idle condition and update Gantt Chart with it
-				printWhenNewPricessLoaded(sysTime, waitQ, ioQ, complete, onCPU, CPUidle);
-				updateGanttChart(sysTime, onCPU, gantt, CPUidle);
+			else{
+				if (!gantt.preIdle){ // CPU remains idle, nothing happens.
+					// print idle condition and update Gantt Chart with it
+					printWhenNewPricessLoaded(sysTime, waitQ, ioQ, complete, onCPU, CPUidle);
+					updateGanttChart(sysTime, onCPU, gantt, CPUidle);
+				}
+				sysIdle++;
 			}
 		}
 
 		// END POINT!!!
-		if ((onCPU.remainCPUBurst == 0 && waitQ.empty() && ioQ.empty() && processList.empty()) || (hasTimeLimit && sysTime == timeLimit))
+		if (complete.size() == numProcess)
+			{sysIdle--; break;} // sysIdle needs to remove the extra increment from the last CPU idle check
+		else if (hasTimeLimit && sysTime == timeLimit)
 			break;
 
 		// Update key parameters at each time tick
@@ -48,7 +53,7 @@ void FCFS(int& sysTime, std::vector<Process>& processList, std::vector<Process>&
 }
 
 
-void RR(int& sysTime, int quant, std::vector<Process>& processList, std::vector<Process>& waitQ, std::vector<Process>& ioQ, std::vector<Process>& complete, Process& onCPU, Gantt& gantt, bool hasTimeLimit, int timeLimit){
+void RR(int& sysTime, int& sysIdle, int quant, std::vector<Process>& processList, std::vector<Process>& waitQ, std::vector<Process>& ioQ, std::vector<Process>& complete, Process& onCPU, Gantt& gantt, const int numProcess, const bool hasTimeLimit, const int timeLimit){
 	int currQuant = quant;
 	bool CPUidle = true; // flag for whether CPU is busy or idle
 	while (true){
@@ -79,15 +84,20 @@ void RR(int& sysTime, int quant, std::vector<Process>& processList, std::vector<
 				updateGanttChart(sysTime, onCPU, gantt, CPUidle);
 				printWhenNewPricessLoaded(sysTime, waitQ, ioQ, complete, onCPU, CPUidle);
 			}
-			else if (!gantt.preIdle){ // CPU remains idle, nothing happens.
-				// print idle condition and update Gantt Chart with it
-				updateGanttChart(sysTime, onCPU, gantt, CPUidle);
-				printWhenNewPricessLoaded(sysTime, waitQ, ioQ, complete, onCPU, CPUidle);
+			else{
+				if (!gantt.preIdle){ // CPU remains idle, nothing happens.
+					// print idle condition and update Gantt Chart with it
+					printWhenNewPricessLoaded(sysTime, waitQ, ioQ, complete, onCPU, CPUidle);
+					updateGanttChart(sysTime, onCPU, gantt, CPUidle);
+				}
+				sysIdle++;
 			}
 		}
 
 		// END POINT!!!
-		if ((onCPU.remainCPUBurst == 0 && waitQ.empty() && ioQ.empty() && processList.empty()) || (hasTimeLimit && sysTime == timeLimit))
+		if (complete.size() == numProcess)
+			{sysIdle--; break;} // sysIdle needs to remove the extra increment from the last CPU idle check
+		else if (hasTimeLimit && sysTime == timeLimit)
 			break;
 
 		// Update key parameters at each time tick
@@ -97,7 +107,7 @@ void RR(int& sysTime, int quant, std::vector<Process>& processList, std::vector<
 	}
 }
 
-void MLFQ(int& sysTime, const std::vector<int>& quantums, std::vector<Process>& processList, std::vector<std::vector<Process> >& MLQ, std::vector<Process>& ioQ, std::vector<Process>& complete, Process& onCPU, Gantt& gantt, const int numProcess, const bool hasTimeLimit, const int timeLimit){
+void MLFQ(int& sysTime, int& sysIdle, const std::vector<int>& quantums, std::vector<Process>& processList, std::vector<std::vector<Process> >& MLQ, std::vector<Process>& ioQ, std::vector<Process>& complete, Process& onCPU, Gantt& gantt, const int numProcess, const bool hasTimeLimit, const int timeLimit){
 	std::vector<int> currQ(quantums);
 	bool CPUidle = true; // flag for whether CPU is busy or idle
 	while (true){
@@ -139,15 +149,20 @@ void MLFQ(int& sysTime, const std::vector<int>& quantums, std::vector<Process>& 
 			}
 			if (!CPUidle) // print out waitQ, ioQ, and CPU info when a new process gets CPU,
 				printWhenNewPricessLoaded(sysTime, MLQ, ioQ, complete, onCPU, CPUidle);
-			else if (CPUidle && !gantt.preIdle){ // CPU remains idle, nothing happens.
-				// print idle condition and update Gantt Chart with it
-				printWhenNewPricessLoaded(sysTime, MLQ, ioQ, complete, onCPU, CPUidle);
-				updateGanttChart(sysTime, onCPU, gantt, CPUidle);
+			else{
+				if (!gantt.preIdle){ // CPU remains idle, nothing happens.
+					// print idle condition and update Gantt Chart with it
+					printWhenNewPricessLoaded(sysTime, MLQ, ioQ, complete, onCPU, CPUidle);
+					updateGanttChart(sysTime, onCPU, gantt, CPUidle);
+				}
+				sysIdle++;
 			}
 		}
 
 		// END POINT!!!
-		if (complete.size() == numProcess || (hasTimeLimit && sysTime == timeLimit)) // all processes complete or sysTime reaches timeLimit
+		if (complete.size() == numProcess)
+			{sysIdle--; break;} // sysIdle needs to remove the extra increment from the last CPU idle check
+		else if (hasTimeLimit && sysTime == timeLimit)
 			break;
 
 		// Update key parameters at each time tick
@@ -157,7 +172,7 @@ void MLFQ(int& sysTime, const std::vector<int>& quantums, std::vector<Process>& 
 	}
 }
 
-void SJF(int& sysTime, std::vector<Process>& processList, std::vector<Process>& waitQ, std::vector<Process>& ioQ, std::vector<Process>& complete, Process& onCPU, Gantt& gantt, bool hasTimeLimit, int timeLimit){
+void SJF(int& sysTime, int& sysIdle, std::vector<Process>& processList, std::vector<Process>& waitQ, std::vector<Process>& ioQ, std::vector<Process>& complete, Process& onCPU, Gantt& gantt, const int numProcess, const bool hasTimeLimit, const int timeLimit){
 	bool CPUidle = true; // flag for whether CPU is busy or idle
 	while (true){
 		if (!processList.empty()) // admit processes based on their initial arrival time
@@ -179,15 +194,20 @@ void SJF(int& sysTime, std::vector<Process>& processList, std::vector<Process>& 
 				printWhenNewPricessLoaded(sysTime, waitQ, ioQ, complete, onCPU, CPUidle);
 				updateGanttChart(sysTime, onCPU, gantt, CPUidle);
 			}
-			else if (!gantt.preIdle){ // CPU remains idle, nothing happens.
-				// print idle condition and update Gantt Chart with it
-				printWhenNewPricessLoaded(sysTime, waitQ, ioQ, complete, onCPU, CPUidle);
-				updateGanttChart(sysTime, onCPU, gantt, CPUidle);
+			else{
+				if (!gantt.preIdle){ // CPU remains idle, nothing happens.
+					// print idle condition and update Gantt Chart with it
+					printWhenNewPricessLoaded(sysTime, waitQ, ioQ, complete, onCPU, CPUidle);
+					updateGanttChart(sysTime, onCPU, gantt, CPUidle);
+				}
+				sysIdle++;
 			}
 		}
 
 		// END POINT!!!
-		if ((onCPU.remainCPUBurst == 0 && waitQ.empty() && ioQ.empty() && processList.empty()) || (hasTimeLimit && sysTime == timeLimit))
+		if (complete.size() == numProcess)
+			{sysIdle--; break;} // sysIdle needs to remove the extra increment from the last CPU idle check
+		else if (hasTimeLimit && sysTime == timeLimit)
 			break;
 
 		// Update key parameters at each time tick

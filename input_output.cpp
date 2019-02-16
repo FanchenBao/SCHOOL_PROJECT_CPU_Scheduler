@@ -31,7 +31,7 @@ void printGanttChart(const Gantt& gantt){
 	std::cout <<"\n";
 }
 
-void printRT_WT_TT(const std::vector<Process>& waitQ, const std::vector<Process>& ioQ, const std::vector<Process>& complete, const Process& onCPU, bool hasTimeLimit){
+void printRT_WT_TT(const std::vector<Process>& waitQ, const std::vector<Process>& ioQ, const std::vector<Process>& complete, const Process& onCPU, const int numProcess, const bool hasTimeLimit){
 	// print out RT, WT, and TT for each process
 	std::vector<Process> forPrint(complete.begin(), complete.end());
 	if (hasTimeLimit){ // scheduling exits prematurely, processes are scattered in different places.
@@ -40,14 +40,21 @@ void printRT_WT_TT(const std::vector<Process>& waitQ, const std::vector<Process>
 		forPrint.push_back(onCPU);
 	}
 	std::sort(forPrint.begin(), forPrint.end(), ComparePNumber());
-	std::cout << "Process\t" << "RT\t" << "WT\t" << "TT\t" << "TT Breakdown\n";
+	int allRT = 0, allWT = 0, allTT = 0;
+	std::cout << "\nProcess\t" << "RT\t" << "WT\t" << "TT\t" << "TT Breakdown\n";
 	for (auto p : forPrint){
 		std::cout << "P" << p.number << "\t"
 				<< p.responseTime << "\t"
 				<< p.waitTime << "\t"
 				<< p.turnaroundTime << "\t"
 				<< p.totalCPUBurst << "(CPU) + " << p.waitTime << "(WT) + " << p.totalIOBurst << "(I/O)" << std::endl;
+		allRT += p.responseTime;
+		allWT += p.waitTime;
+		allTT += p.turnaroundTime;
 	}
+	std::cout << "Average\t" << static_cast<double>(allRT) / numProcess << "\t"
+			<< static_cast<double>(allWT) / numProcess << "\t"
+			<< static_cast<double>(allTT) / numProcess << "\t" << std::endl;
 }
 
 void printWhenNewPricessLoaded(int sysTime, const std::vector<Process>& waitQ, const std::vector<Process>& ioQ, const std::vector<Process>& complete, const Process& onCPU, const bool CPUidle){
@@ -79,13 +86,23 @@ void printWhenNewPricessLoaded(int sysTime, const std::vector<Process>& waitQ, c
 			std::cout << "\tP" << p.number << "\t\t" << p.remainIOBurst << std::endl;
 	}
 	for (int i = 0; i < 60; i++)
+		std::cout <<".";
+	std::cout << "\nCompleted: ";
+	if (complete.empty())
+		std::cout << "\t[empty]\n";
+	else{
+		for (auto p : complete)
+			std::cout << "P" << p.number << ", ";
+		std::cout << "\n";
+	}
+	for (int i = 0; i < 60; i++)
 		std::cout <<"*";
 	std::cout << "\n\n\n";
 }
 
 
 // same functions overloaded for MLFQ
-void printRT_WT_TT(const std::vector<std::vector<Process> >& MLQ, const std::vector<Process>& ioQ, const std::vector<Process>& complete, const Process& onCPU, bool hasTimeLimit){
+void printRT_WT_TT(const std::vector<std::vector<Process> >& MLQ, const std::vector<Process>& ioQ, const std::vector<Process>& complete, const Process& onCPU, const int numProcess, const bool hasTimeLimit){
 	// print out RT, WT, and TT for each process. Overloaded for MLFQ
 	std::vector<Process> forPrint(complete.begin(), complete.end());
 	if (hasTimeLimit){ // scheduling exits prematurely, processes are scattered in different places.
@@ -95,14 +112,21 @@ void printRT_WT_TT(const std::vector<std::vector<Process> >& MLQ, const std::vec
 		forPrint.push_back(onCPU);
 	}
 	std::sort(forPrint.begin(), forPrint.end(), ComparePNumber());
-	std::cout << "Process\t" << "RT\t" << "WT\t" << "TT\t" << "TT Breakdown\n";
+	int allRT = 0, allWT = 0, allTT = 0;
+	std::cout << "\nProcess\t" << "RT\t" << "WT\t" << "TT\t" << "TT Breakdown\n";
 	for (auto p : forPrint){
 		std::cout << "P" << p.number << "\t"
 				<< p.responseTime << "\t"
 				<< p.waitTime << "\t"
 				<< p.turnaroundTime << "\t"
 				<< p.totalCPUBurst << "(CPU) + " << p.waitTime << "(WT) + " << p.totalIOBurst << "(I/O)" << std::endl;
+		allRT += p.responseTime;
+		allWT += p.waitTime;
+		allTT += p.turnaroundTime;
 	}
+	std::cout << "Average\t" << static_cast<double>(allRT) / numProcess << "\t"
+			<< static_cast<double>(allWT) / numProcess << "\t"
+			<< static_cast<double>(allTT) / numProcess << "\t" << std::endl;
 }
 
 void printWhenNewPricessLoaded(int sysTime, const std::vector<std::vector<Process> >& MLQ, const std::vector<Process>& ioQ, const std::vector<Process>& complete, const Process& onCPU, const bool CPUidle){
@@ -138,6 +162,16 @@ void printWhenNewPricessLoaded(int sysTime, const std::vector<std::vector<Proces
 	else{
 		for (auto p : ioQ)
 			std::cout << "\tP" << p.number << "\t\t" << p.remainIOBurst << std::endl;
+	}
+	for (int i = 0; i < 60; i++)
+		std::cout <<".";
+	std::cout << "\nCompleted: ";
+	if (complete.empty())
+		std::cout << "\t[empty]\n";
+	else{
+		for (auto p : complete)
+			std::cout << "P" << p.number << ", ";
+		std::cout << "\n";
 	}
 	for (int i = 0; i < 60; i++)
 		std::cout <<"*";

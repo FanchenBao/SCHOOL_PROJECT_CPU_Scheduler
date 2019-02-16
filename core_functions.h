@@ -1,13 +1,13 @@
 /*
- * CPU_Scheduler.h
+ * core_functions.h
  *
  *  Created on:		Feb 14, 2019
  *  Author: 		Fanchen Bao
- *  Description:	Helper functions to perform CPU scheduling simulation
+ *  Description:	Core functions to perform CPU scheduling simulation
  */
 
-#ifndef CPU_SCHEDULER_H_
-#define CPU_SCHEDULER_H_
+#ifndef CORE_FUNCTIONS_H_
+#define CORE_FUNCTIONS_H_
 
 #include <iostream>
 #include <vector>
@@ -34,11 +34,6 @@ struct Process{
 	Process();// constructor, for CPU only
 };
 
-struct Gantt{ // for producing Gantt Chart
-	std::vector<std::string> processes;
-	std::vector<int> times;
-	bool preIdle; // flag, true = previous Gantt entry is idle, false = previous Gantt entry is a process
-};
 
 struct CompareIO{ // for heapify ioQ
     bool operator()(const Process &a, const Process &b) const{
@@ -59,22 +54,9 @@ void CPUContextSwitch(int sysTime, std::vector<Process>& waitQ, std::vector<Proc
 void pushToIO(std::vector<Process>& ioQ, Process& onCPU);
 void pushToCPU(int sysTime, std::vector<Process>& waitQ, std::vector<Process>& ioQ, std::vector<Process>& complete, Process& onCPU, bool& CPUidle, bool hasTimeLimit, int timeLimit);
 
-// handle multiple ready process in waitQ and ioQ
-void handleSameArrivalTimeInWaitQ(std::vector<Process>& waitQ);
-void handleSameFinishTimeInIOQ(int sysTime, std::vector<Process>& ioQ, std::vector<Process>& targets);
-
-// output
-void printGanttChart(const Gantt& gantt); // print out Gantt Chart
-void printRT_WT_TT(const std::vector<Process>& waitQ, const std::vector<Process>& ioQ, const std::vector<Process>& complete, const Process& onCPU, bool hasTimeLimit); // print out RT, WT, and TT for each process
-void printWhenNewPricessLoaded(int sysTime, const std::vector<Process>& waitQ, const std::vector<Process>& ioQ, const std::vector<Process>& complete, const Process& onCPU, const bool CPUidle); // print information of each queue when a new process is just loaded onto CPU
-
-// Miscellaneous
-void updateGanttChart(int sysTime, Process& onCPU, Gantt& gantt, bool CPUidle); // Gather info to print Gantt Chart
-
 // for MLFQ, these functions are overloaded
 void IOContextSwitch(int sysTime, std::vector<std::vector<Process> >& MLQ, std::vector<Process>& ioQ);
 void CPUContextSwitch(int sysTime, std::vector<int>& currQ, const std::vector<int>& quantums, std::vector<std::vector<Process> >& MLQ, std::vector<Process>& ioQ, std::vector<Process>& complete, Process& onCPU, bool& CPUidle, int reasonForSwitch);
-void printRT_WT_TT(const std::vector<std::vector<Process> >& MLQ, const std::vector<Process>& ioQ, const std::vector<Process>& complete, const Process& onCPU, bool hasTimeLimit);
-void printWhenNewPricessLoaded(int sysTime, const std::vector<std::vector<Process> >& MLQ, const std::vector<Process>& ioQ, const std::vector<Process>& complete, const Process& onCPU, const bool CPUidle);
 
-#endif /* CPU_SCHEDULER_H_ */
+
+#endif /* CORE_FUNCTIONS_H_ */

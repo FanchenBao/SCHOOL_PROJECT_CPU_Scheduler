@@ -25,11 +25,13 @@ void FCFS(int& sysTime, std::vector<Process>& processList, std::vector<Process>&
 			if (!waitQ.empty() && waitQ.begin()->arrival <= sysTime){ // CPU and waitQ both ready to accept new process
 				pushToCPU(sysTime, waitQ, ioQ, complete, onCPU, CPUidle, hasTimeLimit, timeLimit); // load a process to CPU, if possible
 				// print out waitQ, ioQ, and CPU info when a new process gets CPU, also provide information to generate Gantt Chart
-				printWhenNewPricessLoaded(sysTime, waitQ, ioQ, complete, onCPU);
+				printWhenNewPricessLoaded(sysTime, waitQ, ioQ, complete, onCPU, CPUidle);
 				updateGanttChart(sysTime, onCPU, gantt, CPUidle);
 			}
-			else if (!gantt.preIdle) // CPU remains idle, nothing happens.
+			else if (!gantt.preIdle){ // CPU remains idle, nothing happens.
+				printWhenNewPricessLoaded(sysTime, waitQ, ioQ, complete, onCPU, CPUidle);
 				updateGanttChart(sysTime, onCPU, gantt, CPUidle);
+			}
 		}
 
 		// END POINT!!!
@@ -71,10 +73,12 @@ void RR(int& sysTime, int quant, std::vector<Process>& processList, std::vector<
 				pushToCPU(sysTime, waitQ, ioQ, complete, onCPU, CPUidle, hasTimeLimit, timeLimit); // load a process to CPU, if possible
 				// print out waitQ, ioQ, and CPU info when a new process gets CPU, also provide information to generate Gantt Chart
 				updateGanttChart(sysTime, onCPU, gantt, CPUidle);
-				printWhenNewPricessLoaded(sysTime, waitQ, ioQ, complete, onCPU);
+				printWhenNewPricessLoaded(sysTime, waitQ, ioQ, complete, onCPU, CPUidle);
 			}
-			else if (!gantt.preIdle) // CPU remains idle, nothing happens.
+			else if (!gantt.preIdle){ // CPU remains idle, nothing happens.
 				updateGanttChart(sysTime, onCPU, gantt, CPUidle);
+				printWhenNewPricessLoaded(sysTime, waitQ, ioQ, complete, onCPU, CPUidle);
+			}
 		}
 
 		// END POINT!!!
@@ -128,64 +132,21 @@ void MLFQ(int& sysTime, const std::vector<int>& quantums, std::vector<Process>& 
 				}
 			}
 			if (!CPUidle){
-				printWhenNewPricessLoaded(sysTime, MLQ, ioQ, complete, onCPU);
+				printWhenNewPricessLoaded(sysTime, MLQ, ioQ, complete, onCPU, CPUidle);
 			}
-			else if (CPUidle && !gantt.preIdle) // CPU remains idle, nothing happens.
+			else if (CPUidle && !gantt.preIdle){ // CPU remains idle, nothing happens.
+				printWhenNewPricessLoaded(sysTime, MLQ, ioQ, complete, onCPU, CPUidle);
 				updateGanttChart(sysTime, onCPU, gantt, CPUidle);
+			}
 		}
 
 		// END POINT!!!
 		if (complete.size() == numProcess || (hasTimeLimit && sysTime == timeLimit)) // all processes complete or sysTime reaches timeLimit
 			break;
 
-//			if (!MLQ[0].empty() && MLQ[0].begin()->arrival <= sysTime){
-//				handleSameArrivalTimeInWaitQ(MLQ[0]); // check same arrival time situation
-//				popOnCPU(MLQ[0], onCPU, CPUidle, newProcessLoaded);
-//			}
-//			else if (!MLQ[1].empty() && MLQ[1].begin()->arrival <= sysTime){
-//				handleSameArrivalTimeInWaitQ(MLQ[1]); // check same arrival time situation
-//				popOnCPU(MLQ[1], onCPU, CPUidle, newProcessLoaded);
-//			}
-//			else if (!MLQ[2].empty() && MLQ[2].begin()->arrival <= sysTime){
-//				handleSameArrivalTimeInWaitQ(MLQ[2]); // check same arrival time situation
-//				popOnCPU(MLQ[2], onCPU, CPUidle, newProcessLoaded);
-//			}
-//		}
-//
-//		// print out waitQ, ioQ, and CPU information at each instance when a new process gets CPU
-//		// also provide information to generate Gantt Chart
-//		if (newProcessLoaded)
-//			{printWhenNewPricessLoaded_MLFQ(sysTime, MLQ, ioQ, complete, onCPU, gantt);}
-//
-
 		// Update key parameters at each time tick
 		if (!CPUidle){onCPU.remainCPUBurst--; currQ[onCPU.queuePriority - 1]--;} // CPU processing
 		for (auto& p : ioQ){p.remainIOBurst--;} // ioQ updates
-
-//		// Then update key parameters at each time tick
-//		// CPU processing
-//		if (!CPUidle){
-//			onCPU.remainCPUBurst--;
-//			onCPU.turnaroundTime++;
-//			if (onCPU.queuePriority == 1)
-//				currQ1--;
-//			else if (onCPU.queuePriority == 2)
-//				currQ2--;
-//		}
-//		// MLQ updates
-//		for (auto& wq : MLQ){
-//			for (auto& p : wq){
-//				if (!p.serviced) // increase RT for the processes that haven't been serviced yet
-//					p.responseTime++;
-//				p.waitTime++;
-//				p.turnaroundTime++;
-//			}
-//		}
-//		// ioQ updates
-//		for (auto& p : ioQ){
-//			p.remainIOBurst--;
-//			p.turnaroundTime++;
-//		}
 		sysTime++;
 	}
 }
@@ -201,8 +162,8 @@ int main() {
 	Gantt gantt;
 	std::vector<std::vector<Process> > MLQ; // multilevel queues
 
-	bool hasTimeLimit = true;
-//	bool hasTimeLimit = false;
+//	bool hasTimeLimit = true;
+	bool hasTimeLimit = false;
 	int timeLimit = 147;
 	int sysTime = 0; // initial system time
 	int numProcess = 9; // total number of processes
@@ -249,7 +210,7 @@ int main() {
 
 
 	// FCFS
-//	FCFS(sysTime, processList, waitQ, ioQ, complete, onCPU, gantt, hasTimeLimit, timeLimit);
+	FCFS(sysTime, processList, waitQ, ioQ, complete, onCPU, gantt, hasTimeLimit, timeLimit);
 
 	// RR
 //	RR(sysTime, 5, processList, waitQ, ioQ, complete, onCPU, gantt, hasTimeLimit, timeLimit);
@@ -264,8 +225,8 @@ int main() {
 
 	// print out final results
 	printGanttChart(gantt);
-//	printRT_WT_TT(waitQ, ioQ, complete, onCPU, hasTimeLimit);
-	printRT_WT_TT(MLQ, ioQ, complete, onCPU, hasTimeLimit); // for MLFQ
+	printRT_WT_TT(waitQ, ioQ, complete, onCPU, hasTimeLimit);
+//	printRT_WT_TT(MLQ, ioQ, complete, onCPU, hasTimeLimit); // for MLFQ
 
 	return 0;
 }

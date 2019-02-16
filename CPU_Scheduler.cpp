@@ -209,7 +209,7 @@ void printRT_WT_TT(const std::vector<std::vector<Process> >& MLQ, const std::vec
 		forPrint.push_back(onCPU);
 	}
 	std::sort(forPrint.begin(), forPrint.end(), ComparePNumber());
-	std::cout << "Process\t" << "RT\t" << "WT\t" << "TT\n";
+	std::cout << "Process\t" << "RT\t" << "WT\t" << "TT\t" << "TT Breakdown\n";
 	for (auto p : forPrint){
 		std::cout << "P" << p.number << "\t"
 				<< p.responseTime << "\t"
@@ -219,10 +219,14 @@ void printRT_WT_TT(const std::vector<std::vector<Process> >& MLQ, const std::vec
 	}
 }
 
-void printWhenNewPricessLoaded(int sysTime, const std::vector<Process>& waitQ, const std::vector<Process>& ioQ, const std::vector<Process>& complete, const Process& onCPU){
+void printWhenNewPricessLoaded(int sysTime, const std::vector<Process>& waitQ, const std::vector<Process>& ioQ, const std::vector<Process>& complete, const Process& onCPU, const bool CPUidle){
 	// print information of each queue when a new process is just loaded onto CPU.
 	std::cout << "Current Time = " << sysTime << std::endl;
-	std::cout << "Next process on the CPU: P" << onCPU.number << ", Burst = "<< onCPU.remainCPUBurst << std::endl;
+	std::cout << "Next process on the CPU: ";
+	if (CPUidle)
+		std::cout << "[idle]\n";
+	else
+		std::cout << "P" << onCPU.number << ", Burst = "<< onCPU.remainCPUBurst << std::endl;
 	for (int i = 0; i < 60; i++)
 		std::cout <<".";
 	std::cout << "\nList of processes in the ready queue:\n";
@@ -248,32 +252,30 @@ void printWhenNewPricessLoaded(int sysTime, const std::vector<Process>& waitQ, c
 	std::cout << "\n\n\n";
 }
 
-void printWhenNewPricessLoaded(int sysTime, const std::vector<std::vector<Process> >& MLQ, const std::vector<Process>& ioQ, const std::vector<Process>& complete, const Process& onCPU){
+void printWhenNewPricessLoaded(int sysTime, const std::vector<std::vector<Process> >& MLQ, const std::vector<Process>& ioQ, const std::vector<Process>& complete, const Process& onCPU, const bool CPUidle){
 	// print information of each queue when a new process is just loaded onto CPU. Overloaded for MLFQ
 	std::cout << "Current Time = " << sysTime << std::endl;
-	std::cout << "Next process on the CPU: P" << onCPU.number << ", Burst = "<< onCPU.remainCPUBurst << std::endl;
+	std::cout << "Next process on the CPU: ";
+	if (CPUidle)
+		std::cout << "[idle]\n";
+	else
+		std::cout << "P" << onCPU.number << ", Burst = "<< onCPU.remainCPUBurst << std::endl;
 	for (int i = 0; i < 60; i++)
 		std::cout <<".";
 	std::cout << "\nList of processes in the ready queue:\n";
 	std::cout << "\tProcess\t\tBurst\t\tQueue\n";
 	bool allSubQEmpty = true;
-	for (auto subQ : MLQ){
-		if (!subQ.empty()){
-			allSubQEmpty = false;
-			for (auto p : subQ)
-				std::cout << "\tP" << p.number << "\t\t" << p.remainCPUBurst << "\t\tQ" << p.queuePriority << std::endl;
+	if (!CPUidle){
+		for (auto subQ : MLQ){
+			if (!subQ.empty()){
+				allSubQEmpty = false;
+				for (auto p : subQ)
+					std::cout << "\tP" << p.number << "\t\t" << p.remainCPUBurst << "\t\tQ" << p.queuePriority << std::endl;
+			}
 		}
 	}
 	if (allSubQEmpty)
 		std::cout << "\t[empty]\n";
-//	else{
-//		for (auto p : MLQ[0])
-//			std::cout << "\tP" << p.number << "\t\t" << p.remainCPUBurst << "\t\tQ" << p.queuePriority << std::endl;
-//		for (auto p : MLQ[1])
-//			std::cout << "\tP" << p.number << "\t\t" << p.remainCPUBurst << "\t\tQ" << p.queuePriority << std::endl;
-//		for (auto p : MLQ[2])
-//			std::cout << "\tP" << p.number << "\t\t" << p.remainCPUBurst << "\t\tQ" << p.queuePriority << std::endl;
-//	}
 	for (int i = 0; i < 60; i++)
 		std::cout <<".";
 	std::cout << "\nList of processes in I/O:\n";

@@ -7,7 +7,7 @@ Final goal is to have user input process information into console, choose a sche
 To do list
 * CPU scheduler algorithms:
     * FCFS (First Come First Served, non-preemptive) **Complete**
-    * SJF (Shortest Job First, non-preemptive)
+    * SJF (Shortest Job First, non-preemptive) **Complete**
     * Priority (non-preemptive)
     * RR (Round Robin, preemptive) **Complete**
     * SRF (Shortest Remanining time First, preemptive)

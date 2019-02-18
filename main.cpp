@@ -70,7 +70,7 @@ int main() {
 
 
 	// FCFS
-//	FCFS(sysTime, sysIdle, CPUidle, processList, readyQ, ioQ, complete, onCPU, gantt, numProcess, hasTimeLimit, timeLimit);
+	FCFS(sysTime, sysIdle, CPUidle, processList, readyQ, ioQ, complete, onCPU, gantt, numProcess, hasTimeLimit, timeLimit);
 
 	// RR
 //	RR(sysTime, sysIdle, CPUidle, 5, processList, readyQ, ioQ, complete, onCPU, gantt, numProcess, hasTimeLimit, timeLimit);
@@ -80,7 +80,7 @@ int main() {
 	for (int i = 0; i < numSubQ; i++) // add subqueues to MLQ
 		MLQ.emplace_back(std::vector<Process>());
 	std::vector<int> quantums = {4, 9, -1}; // all non-RR queues default to -1 quantum (set to -1 such that non-RR queue quantum would never reach 0 to trigger a quantum drying up event)
-	MLFQ(sysTime, sysIdle, CPUidle, quantums, processList, MLQ, ioQ, complete, onCPU, gantt, numProcess, hasTimeLimit, timeLimit);
+//	MLFQ(sysTime, sysIdle, CPUidle, quantums, processList, MLQ, ioQ, complete, onCPU, gantt, numProcess, hasTimeLimit, timeLimit);
 
 	// SJF
 //	SJF(sysTime, sysIdle, CPUidle, processList, readyQ, ioQ, complete, onCPU, gantt, numProcess, hasTimeLimit, timeLimit);
@@ -90,8 +90,8 @@ int main() {
 	// print out final results
 	printGanttChart(gantt);
 	std::cout << "\nTotal number of CPU context switches: " << gantt.numCPUContextSwitch << std::endl;
-//	printRT_WT_TT(readyQ, ioQ, complete, onCPU, numProcess, hasTimeLimit);
-	printRT_WT_TT(MLQ, ioQ, complete, onCPU, numProcess, hasTimeLimit); // for MLFQ
+	printRT_WT_TT(readyQ, ioQ, complete, onCPU, numProcess, hasTimeLimit);
+//	printRT_WT_TT(MLQ, ioQ, complete, onCPU, numProcess, hasTimeLimit); // for MLFQ
 
 	std::cout << "\nTotal Time:\t\t" << sysTime << std::endl;
 	std::cout << "Idle Time:\t\t" << sysIdle << std::endl;

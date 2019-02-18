@@ -38,7 +38,7 @@ void prioritizeReadyQ(int sysTime, int priorityType, std::vector<Process>& ready
 	switch (priorityType){
 		case 1: {// priority is arrival time. No major reordering needed, except when multiple processes have same arrival time at the top
 			if (!readyQ.empty() && readyQ.begin()->arrival <= sysTime)
-				handleSamePriorityInReadyQ(readyQ, 1); // check same arrival time situation. Comment this line if one does not want to pick the smallest process number to go first if multiple arrival times are the same
+				handleSamePriorityInReadyQ(readyQ, 1, readyQ.size()); // check same arrival time situation. Comment this line if one does not want to pick the smallest process number to go first if multiple arrival times are the same
 			break;
 		}
 		case 2: {// priority is the remaining CPU burst
@@ -47,7 +47,7 @@ void prioritizeReadyQ(int sysTime, int priorityType, std::vector<Process>& ready
 				for (; it != readyQ.end(); it++) // reorder based on CPU burst for all those processes eligible for CPU now
 					if (it->arrival > sysTime) {break;}
 				std::sort(readyQ.begin(), it, CompareRemainCPUBurst()); // sort these eligible processes based on remaining CPU burst
-				handleSamePriorityInReadyQ(readyQ, 2); // for processes at the beginning having same CPU burst, reorder based on process number
+				handleSamePriorityInReadyQ(readyQ, 2, readyQ.size()); // for processes at the beginning having same CPU burst, reorder based on process number
 			}
 			break;
 		}

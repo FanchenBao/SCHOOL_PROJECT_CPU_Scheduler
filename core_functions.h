@@ -47,6 +47,12 @@ struct ComparePNumber{ // for sorting based on process number
     }
 };
 
+struct CompareArrival{ // for sorting based on arrival time
+    bool operator()(const Process &a, const Process &b) const{
+        return a.arrival < b.arrival;
+    }
+};
+
 struct CompareRemainCPUBurst{ // for sorting based on remaining CPU burst
     bool operator()(const Process &a, const Process &b) const{
         return a.remainCPUBurst < b.remainCPUBurst;

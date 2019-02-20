@@ -21,6 +21,7 @@ struct Process{
 	int index; // index pointing to current CPU or I/O element of processTime
 	int ptSize; // size of processTime
 	int arrival; // arrival time, default to 0
+	int priority; // process's own priority. default to 1 (smaller the priority value, the higher the priority)
 	int remainCPUBurst; // remaining CPU burst time, default to processTime[0].
 	int remainIOBurst; // remaining I/O burst time, default to 0
 	int totalCPUBurst; // total CPU burst so far, tallied at the end of a CPU burst
@@ -30,8 +31,9 @@ struct Process{
 	int waitTime; // WT += time when process gets CPU - current arrival time
 	int turnaroundTime; // TT = waitTime + totalCPUBurst + totalIOBurst (note that the wait time and I/O time that happen before a process completes its current CPU burst do NOT count towards TT
 
-	Process(int n, int* pt, int r); // constructor
+	Process(int n, int* pt, int r, int p = 1); // constructor
 	Process();// constructor, for onCPU only
+	void reset(); // reset all parameters
 };
 
 
@@ -50,6 +52,12 @@ struct ComparePNumber{ // for sorting based on process number
 struct CompareArrival{ // for sorting based on arrival time
     bool operator()(const Process &a, const Process &b) const{
         return a.arrival < b.arrival;
+    }
+};
+
+struct ComparePriority{ // for sorting based on arrival time
+    bool operator()(const Process &a, const Process &b) const{
+        return a.priority < b.priority;
     }
 };
 

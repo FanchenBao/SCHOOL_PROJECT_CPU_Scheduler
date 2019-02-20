@@ -14,7 +14,7 @@ void handleSamePriorityInReadyQ(std::vector<Process>& readyQ, int priorityType, 
 	// same priority and all ready to go to CPU, the processes are ordered by their arrival time,
 	// with smallest arrival time getting CPU first.
 	// If arrival time are the same again, then the smallest process number gets CPU first.
-	// priorityType = 1 (arrival time (FCFS, RR)), 2 (CPU burst (SJF, SRF))
+	// priorityType = 1 (arrival time (FCFS, RR)), 2 (CPU burst (SJF, SRF)), 3 (arbitrary priority)
 	// size denotes how many processes within readyQ (starting from the top) should be checked for same priority situation
 	int i = 0;
 	bool doneWithLoop = false;
@@ -28,6 +28,10 @@ void handleSamePriorityInReadyQ(std::vector<Process>& readyQ, int priorityType, 
 				if (readyQ[i].remainCPUBurst != readyQ[0].remainCPUBurst)
 					doneWithLoop = true;
 				break;
+			case 3:
+				if (readyQ[i].priority != readyQ[0].priority)
+					doneWithLoop = true;
+				break;
 			default:
 				std::cerr << "Fatal Error: Check priorityType for handling same priority in wait queue." << std::endl;
 				std::exit(1);
@@ -35,17 +39,11 @@ void handleSamePriorityInReadyQ(std::vector<Process>& readyQ, int priorityType, 
 		if (doneWithLoop) {break;}
 
 	}
-	switch (priorityType){
-		case 1: // when arrival time is the same, choose the smaller process number
-			std::sort(readyQ.begin(), readyQ.begin()+i, ComparePNumber()); // sort these eligible processes based on process number
-			break;
-		case 2: // when other priority is the same, choose the earliest arrival
-			std::sort(readyQ.begin(), readyQ.begin()+i, CompareArrival());
-			handleSamePriorityInReadyQ(readyQ, 1, i); // check again for potential same arrival time (i.e. there are processes with same highest priority and same highest arrival time)
-			break;
-		default:
-			std::cerr << "Fatal Error: Check priorityType for handling same priority in wait queue." << std::endl;
-			std::exit(1);
+	if (priorityType == 1) // when arrival time is the same, choose the smaller process number
+		std::sort(readyQ.begin(), readyQ.begin()+i, ComparePNumber()); // sort these eligible processes based on process number
+	else{ // when other priority is the same, choose the earliest arrival
+		std::sort(readyQ.begin(), readyQ.begin()+i, CompareArrival());
+		handleSamePriorityInReadyQ(readyQ, 1, i); // check again for potential same arrival time (i.e. there are processes with same highest priority and same highest arrival time)
 	}
 
 }

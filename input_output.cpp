@@ -7,6 +7,14 @@
 
 #include "input_output.h"
 
+// reset all parameters in the struct
+void Gantt::reset(){
+	processes.clear();
+	times.clear();
+	preIdle = true;
+	numCPUContextSwitch = 0;
+}
+
 void updateGanttChart(int sysTime, Process& onCPU, Gantt& gantt, bool CPUidle){
 	// Gather info to print Gantt Chart
 	gantt.times.push_back(sysTime);

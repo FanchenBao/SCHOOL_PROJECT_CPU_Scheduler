@@ -8,7 +8,7 @@
 #include "utility.h"
 
 // constructor
-Process::Process(int n, int* pt, int r) : number(n), index(0), arrival(0), remainCPUBurst(r), remainIOBurst(0), totalCPUBurst(0), totalIOBurst(0), queuePriority(1), responseTime(0), waitTime(0), turnaroundTime(0){
+Process::Process(int n, int* pt, int r, int p) : number(n), index(0), arrival(0), priority(p), remainCPUBurst(r), remainIOBurst(0), totalCPUBurst(0), totalIOBurst(0), queuePriority(1), responseTime(0), waitTime(0), turnaroundTime(0){
 	int i = 0;
 	while (pt[i])
 		processTime.push_back(pt[i++]);
@@ -16,9 +16,25 @@ Process::Process(int n, int* pt, int r) : number(n), index(0), arrival(0), remai
 }
 
 // constructor, for CPU only
-Process::Process(): number(0), index(0), ptSize(0), arrival(0), remainCPUBurst(0), remainIOBurst(0), totalCPUBurst(0), totalIOBurst(0), queuePriority(1), responseTime(0), waitTime(0), turnaroundTime(0){}
+Process::Process(): number(0), index(0), ptSize(0), arrival(0), priority(1), remainCPUBurst(0), remainIOBurst(0), totalCPUBurst(0), totalIOBurst(0), queuePriority(1), responseTime(0), waitTime(0), turnaroundTime(0){}
 
-
+// reset all parameters in the struct
+void Process::reset(){
+	number = 0;
+	processTime.clear();
+	index = 0;
+	ptSize = 0;
+	arrival = 0;
+	priority = 1;
+	remainCPUBurst = 0;
+	remainIOBurst = 0;
+	totalCPUBurst = 0;
+	totalIOBurst = 0;
+	queuePriority = 1;
+	responseTime = 0;
+	waitTime = 0;
+	turnaroundTime = 0;
+}
 
 // CPU and I/O actions
 void admitProcess(int sysTime, std::vector<Process>& processList, std::vector<Process>& readyQ){
@@ -34,7 +50,7 @@ void admitProcess(int sysTime, std::vector<Process>& processList, std::vector<Pr
 
 void prioritizeReadyQ(int sysTime, int priorityType, std::vector<Process>& readyQ){
 	// reorder readyQ if necessary, based on priorityType
-	// priorityType = 1 (arrival time (FCFS, RR)), 2 (CPU burst (SJF, SRF))
+	// priorityType = 1 (arrival time (FCFS, RR)), 2 (CPU burst (SJF, SRF)), 3 (arbitrary priority)
 	switch (priorityType){
 		case 1: {// priority is arrival time. No major reordering needed, except when multiple processes have same arrival time at the top
 			if (!readyQ.empty() && readyQ.begin()->arrival <= sysTime)
@@ -47,6 +63,16 @@ void prioritizeReadyQ(int sysTime, int priorityType, std::vector<Process>& ready
 				for (; it != readyQ.end(); it++) // reorder based on CPU burst for all those processes eligible for CPU now
 					if (it->arrival > sysTime) {break;}
 				std::sort(readyQ.begin(), it, CompareRemainCPUBurst()); // sort these eligible processes based on remaining CPU burst
+				handleSamePriorityInReadyQ(readyQ, 2, readyQ.size()); // for processes at the beginning having same CPU burst, reorder based on process number
+			}
+			break;
+		}
+		case 3:{ // priority is from an arbitrarily given value
+			if (!readyQ.empty() && readyQ.begin()->arrival <= sysTime){
+				auto it = readyQ.begin();
+				for (; it != readyQ.end(); it++) // reorder based on CPU burst for all those processes eligible for CPU now
+					if (it->arrival > sysTime) {break;}
+				std::sort(readyQ.begin(), it, ComparePriority()); // sort these eligible processes based on remaining CPU burst
 				handleSamePriorityInReadyQ(readyQ, 2, readyQ.size()); // for processes at the beginning having same CPU burst, reorder based on process number
 			}
 			break;

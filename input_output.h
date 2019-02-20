@@ -18,6 +18,7 @@ struct Gantt{ // for producing Gantt Chart
 	int numCPUContextSwitch;
 
 	Gantt() : preIdle(true), numCPUContextSwitch(0){} // constructor
+	void reset(); // reset all parameters
 };
 
 // output

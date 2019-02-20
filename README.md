@@ -8,7 +8,7 @@ To do list
 * CPU scheduler algorithms:
     * FCFS (First Come First Served, non-preemptive) **Complete**
     * SJF (Shortest Job First, non-preemptive) **Complete**
-    * Priority (non-preemptive)
+    * Priority (non-preemptive) **Complete**
     * RR (Round Robin, preemptive) **Complete**
     * SRF (Shortest Remanining time First, preemptive)
     * Preemptive Priority (preemptive)

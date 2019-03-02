@@ -14,4 +14,6 @@ To do list
     * Preemptive Priority (preemptive)
     * MLQ_noF (MultiLevel Queue non Feedback, lowest priority queue must be FCFS, other queues must be RR with higher priority having smaller quantum)
     * MLFQ (MultiLevel Feedback Queue, same rule as MLQ) **Complete**
-* Console user interface
+* __Tie-break rule for multiple processes arriving at the ready queue at the same time__
+    * When any non-arrival-time priorities are the same, processes are ordered according to their arrival time at the ready queue. Smaller arrival time goes first.
+    * When non-arrival-time priorities and arrival time are the same, process with smallest process number goes first. This is an arbitrary rule and can be modified if necessary.

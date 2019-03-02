@@ -36,7 +36,7 @@ int main() {
 	bool hasTimeLimit = false;
 	int timeLimit = 150;
 
-	loadData_9processes(processList, 2); // fast way to load the 9-process data set.
+	loadData_9processes(processList, 1); // fast way to load the 9-process data set. 1 = (no arbitrary priority), 2 = (arbitrary priority)
 
 	// 5-process data sets
 //	int info[5][30] = {{5,6,7},{4,2,3},{2,3,4},{5,2,7},{3,2,4}};
@@ -77,7 +77,7 @@ int main() {
 
 	// Running each scheduler algorithms
 	// FCFS
-//	FCFS(sysTime, sysIdle, CPUidle, processList, readyQ, ioQ, complete, onCPU, gantt, numProcess, hasTimeLimit, timeLimit);
+	FCFS(sysTime, sysIdle, CPUidle, processList, readyQ, ioQ, complete, onCPU, gantt, numProcess, hasTimeLimit, timeLimit);
 
 	// RR
 //	RR(sysTime, sysIdle, CPUidle, 5, processList, readyQ, ioQ, complete, onCPU, gantt, numProcess, hasTimeLimit, timeLimit);
@@ -106,7 +106,7 @@ int main() {
 
 	std::cout << "\nTotal Time:\t\t" << sysTime << std::endl;
 	std::cout << "Idle Time:\t\t" << sysIdle << std::endl;
-	std::cout << "CPU Utilization:\t" << static_cast<double>(sysTime - sysIdle) / sysTime << std::endl;
+	std::cout << "CPU Utilization:\t" << static_cast<double>(sysTime - sysIdle) / sysTime * 100 << "%" << std::endl;
 
 	return 0;
 }

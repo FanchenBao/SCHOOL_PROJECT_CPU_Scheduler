@@ -17,7 +17,7 @@ struct Gantt{ // for producing Gantt Chart
 	bool preIdle; // flag, true = previous Gantt entry is idle, false = previous Gantt entry is a process
 	int numCPUContextSwitch;
 
-	Gantt() : preIdle(true), numCPUContextSwitch(0){} // constructor
+	Gantt() : preIdle(true), numCPUContextSwitch(-1){} // constructor
 	void reset(); // reset all parameters
 };
 

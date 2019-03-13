@@ -18,10 +18,11 @@ void Gantt::reset(){
 void updateGanttChart(int sysTime, Process& onCPU, Gantt& gantt, bool CPUidle){
 	// Gather info to print Gantt Chart
 	gantt.times.push_back(sysTime);
+	gantt.numCPUContextSwitch++;
 	if (!CPUidle){ // a new process is currently on CPU
 		gantt.processes.push_back("P" + std::to_string(onCPU.number));
 		gantt.preIdle = false;
-		gantt.numCPUContextSwitch++;
+//		gantt.numCPUContextSwitch++;
 	}
 	else{ // CPU in idle
 		gantt.processes.push_back("IDLE");
